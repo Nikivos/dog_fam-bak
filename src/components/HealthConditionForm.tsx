@@ -13,66 +13,46 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { saveMedication } from '../data/medicalStorage';
+import { saveHealthCondition } from '../data/medicalStorage';
 
 type RootStackParamList = {
-  AddMedication: { petId: string };
+  AddHealthCondition: { petId: string };
 };
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
-type MedicationFormRouteProp = RouteProp<RootStackParamList, 'AddMedication'>;
+type HealthConditionFormRouteProp = RouteProp<RootStackParamList, 'AddHealthCondition'>;
 
-export const MedicationForm = () => {
+export const HealthConditionForm = () => {
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<MedicationFormRouteProp>();
+  const route = useRoute<HealthConditionFormRouteProp>();
   const { petId } = route.params;
 
   const [name, setName] = useState('');
-  const [dosage, setDosage] = useState('');
-  const [frequency, setFrequency] = useState('');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState('');
+  const [diagnosedDate, setDiagnosedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [status, setStatus] = useState<'active' | 'resolved'>('active');
   const [notes, setNotes] = useState('');
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [currentPicker, setCurrentPicker] = useState<'start' | 'end'>('start');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowStartDatePicker(false);
-    setShowEndDatePicker(false);
+    setShowDatePicker(false);
 
     if (selectedDate) {
       const formattedDate = selectedDate.toISOString().split('T')[0];
-      if (currentPicker === 'start') {
-        setStartDate(formattedDate);
-      } else {
-        setEndDate(formattedDate);
-      }
-    }
-  };
-
-  const showPicker = (pickerType: 'start' | 'end') => {
-    setCurrentPicker(pickerType);
-    if (pickerType === 'start') {
-      setShowStartDatePicker(true);
-    } else {
-      setShowEndDatePicker(true);
+      setDiagnosedDate(formattedDate);
     }
   };
 
   const handleSubmit = async () => {
     try {
-      await saveMedication(petId, {
+      await saveHealthCondition(petId, {
         name,
-        dosage,
-        frequency,
-        startDate,
-        endDate,
+        diagnosedDate,
+        status,
         notes,
       });
       navigation.goBack();
     } catch (error) {
-      console.error('Error saving medication:', error);
+      console.error('Error saving health condition:', error);
     }
   };
 
@@ -80,47 +60,57 @@ export const MedicationForm = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.form}>
-          <Text style={styles.label}>Название препарата</Text>
+          <Text style={styles.label}>Название заболевания</Text>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="Введите название препарата"
+            placeholder="Введите название заболевания"
           />
 
-          <Text style={styles.label}>Дозировка</Text>
-          <TextInput
-            style={styles.input}
-            value={dosage}
-            onChangeText={setDosage}
-            placeholder="Введите дозировку"
-          />
-
-          <Text style={styles.label}>Частота приёма</Text>
-          <TextInput
-            style={styles.input}
-            value={frequency}
-            onChangeText={setFrequency}
-            placeholder="Например: 2 раза в день"
-          />
-
-          <Text style={styles.label}>Дата начала приёма</Text>
+          <Text style={styles.label}>Дата диагностирования</Text>
           <TouchableOpacity
             style={styles.dateButton}
-            onPress={() => showPicker('start')}
+            onPress={() => setShowDatePicker(true)}
           >
-            <Text style={styles.dateButtonText}>{startDate}</Text>
+            <Text style={styles.dateButtonText}>{diagnosedDate}</Text>
           </TouchableOpacity>
 
-          <Text style={styles.label}>Дата окончания приёма</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => showPicker('end')}
-          >
-            <Text style={styles.dateButtonText}>
-              {endDate || 'Не указано'}
-            </Text>
-          </TouchableOpacity>
+          <Text style={styles.label}>Статус</Text>
+          <View style={styles.statusContainer}>
+            <TouchableOpacity
+              style={[
+                styles.statusButton,
+                status === 'active' && styles.statusButtonActive,
+              ]}
+              onPress={() => setStatus('active')}
+            >
+              <Text
+                style={[
+                  styles.statusButtonText,
+                  status === 'active' && styles.statusButtonTextActive,
+                ]}
+              >
+                Активно
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.statusButton,
+                status === 'resolved' && styles.statusButtonActive,
+              ]}
+              onPress={() => setStatus('resolved')}
+            >
+              <Text
+                style={[
+                  styles.statusButtonText,
+                  status === 'resolved' && styles.statusButtonTextActive,
+                ]}
+              >
+                Вылечено
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           <Text style={styles.label}>Заметки</Text>
           <TextInput
@@ -158,9 +148,9 @@ export const MedicationForm = () => {
         </View>
       </ScrollView>
 
-      {(showStartDatePicker || showEndDatePicker) && (
+      {showDatePicker && (
         <DateTimePicker
-          value={new Date(currentPicker === 'start' ? startDate : (endDate || startDate))}
+          value={new Date(diagnosedDate)}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={handleDateChange}
@@ -210,6 +200,30 @@ const styles = StyleSheet.create({
   dateButtonText: {
     fontSize: 16,
     color: '#333',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  statusButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e1e1e1',
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  statusButtonActive: {
+    backgroundColor: '#4facfe',
+    borderColor: '#4facfe',
+  },
+  statusButtonText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  statusButtonTextActive: {
+    color: '#fff',
   },
   buttonContainer: {
     flexDirection: 'row',

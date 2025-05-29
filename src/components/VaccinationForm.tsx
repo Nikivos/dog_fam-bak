@@ -13,66 +13,62 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { saveMedication } from '../data/medicalStorage';
+import { Vaccination, saveVaccination } from '../data/medicalStorage';
 
 type RootStackParamList = {
-  AddMedication: { petId: string };
+  AddVaccination: { petId: string };
 };
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
-type MedicationFormRouteProp = RouteProp<RootStackParamList, 'AddMedication'>;
+type VaccinationFormRouteProp = RouteProp<RootStackParamList, 'AddVaccination'>;
 
-export const MedicationForm = () => {
+export const VaccinationForm = () => {
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<MedicationFormRouteProp>();
+  const route = useRoute<VaccinationFormRouteProp>();
   const { petId } = route.params;
 
   const [name, setName] = useState('');
-  const [dosage, setDosage] = useState('');
-  const [frequency, setFrequency] = useState('');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [nextDate, setNextDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [currentPicker, setCurrentPicker] = useState<'start' | 'end'>('start');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showNextDatePicker, setShowNextDatePicker] = useState(false);
+  const [currentPicker, setCurrentPicker] = useState<'date' | 'nextDate'>('date');
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowStartDatePicker(false);
-    setShowEndDatePicker(false);
+    setShowDatePicker(false);
+    setShowNextDatePicker(false);
 
     if (selectedDate) {
       const formattedDate = selectedDate.toISOString().split('T')[0];
-      if (currentPicker === 'start') {
-        setStartDate(formattedDate);
+      if (currentPicker === 'date') {
+        setDate(formattedDate);
       } else {
-        setEndDate(formattedDate);
+        setNextDate(formattedDate);
       }
     }
   };
 
-  const showPicker = (pickerType: 'start' | 'end') => {
+  const showPicker = (pickerType: 'date' | 'nextDate') => {
     setCurrentPicker(pickerType);
-    if (pickerType === 'start') {
-      setShowStartDatePicker(true);
+    if (pickerType === 'date') {
+      setShowDatePicker(true);
     } else {
-      setShowEndDatePicker(true);
+      setShowNextDatePicker(true);
     }
   };
 
   const handleSubmit = async () => {
     try {
-      await saveMedication(petId, {
+      await saveVaccination(petId, {
         name,
-        dosage,
-        frequency,
-        startDate,
-        endDate,
+        date,
+        nextDate,
         notes,
       });
       navigation.goBack();
     } catch (error) {
-      console.error('Error saving medication:', error);
+      console.error('Error saving vaccination:', error);
     }
   };
 
@@ -80,46 +76,28 @@ export const MedicationForm = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.form}>
-          <Text style={styles.label}>Название препарата</Text>
+          <Text style={styles.label}>Название вакцины</Text>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="Введите название препарата"
+            placeholder="Введите название вакцины"
           />
 
-          <Text style={styles.label}>Дозировка</Text>
-          <TextInput
-            style={styles.input}
-            value={dosage}
-            onChangeText={setDosage}
-            placeholder="Введите дозировку"
-          />
-
-          <Text style={styles.label}>Частота приёма</Text>
-          <TextInput
-            style={styles.input}
-            value={frequency}
-            onChangeText={setFrequency}
-            placeholder="Например: 2 раза в день"
-          />
-
-          <Text style={styles.label}>Дата начала приёма</Text>
+          <Text style={styles.label}>Дата вакцинации</Text>
           <TouchableOpacity
             style={styles.dateButton}
-            onPress={() => showPicker('start')}
+            onPress={() => showPicker('date')}
           >
-            <Text style={styles.dateButtonText}>{startDate}</Text>
+            <Text style={styles.dateButtonText}>{date}</Text>
           </TouchableOpacity>
 
-          <Text style={styles.label}>Дата окончания приёма</Text>
+          <Text style={styles.label}>Дата следующей вакцинации</Text>
           <TouchableOpacity
             style={styles.dateButton}
-            onPress={() => showPicker('end')}
+            onPress={() => showPicker('nextDate')}
           >
-            <Text style={styles.dateButtonText}>
-              {endDate || 'Не указано'}
-            </Text>
+            <Text style={styles.dateButtonText}>{nextDate}</Text>
           </TouchableOpacity>
 
           <Text style={styles.label}>Заметки</Text>
@@ -158,9 +136,9 @@ export const MedicationForm = () => {
         </View>
       </ScrollView>
 
-      {(showStartDatePicker || showEndDatePicker) && (
+      {(showDatePicker || showNextDatePicker) && (
         <DateTimePicker
-          value={new Date(currentPicker === 'start' ? startDate : (endDate || startDate))}
+          value={new Date(currentPicker === 'date' ? date : nextDate)}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={handleDateChange}

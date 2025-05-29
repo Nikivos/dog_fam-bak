@@ -1,245 +1,216 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type Vaccination = {
+export interface Vaccination {
   id: string;
-  petId: string;
-  name: string; // Название вакцины
-  date: string; // Дата вакцинации
-  nextDate: string; // Дата следующей вакцинации
-  veterinarian: string; // Врач
-  clinic: string; // Клиника
-  notes?: string; // Дополнительные заметки
-};
-
-export type Deworming = {
-  id: string;
-  petId: string;
-  medicine: string; // Название препарата
-  date: string; // Дата дегельминтизации
-  nextDate: string; // Дата следующей дегельминтизации
-  dosage: string; // Дозировка
-  notes?: string; // Дополнительные заметки
-};
-
-export type VetVisit = {
-  id: string;
-  petId: string;
+  name: string;
   date: string;
-  reason: string; // Причина визита
-  diagnosis?: string; // Диагноз
-  treatment?: string; // Назначенное лечение
-  veterinarian: string;
-  clinic: string;
-  nextVisitDate?: string; // Дата следующего визита
+  nextDate: string;
   notes?: string;
-};
+}
 
-export type Medication = {
+export interface Deworming {
   id: string;
-  petId: string;
-  name: string; // Название препарата
+  date: string;
+  medicine: string;
+  nextDate: string;
+  notes?: string;
+}
+
+export interface VetVisit {
+  id: string;
+  date: string;
+  reason: string;
+  diagnosis?: string;
+  prescription?: string;
+  nextVisit?: string;
+  notes?: string;
+}
+
+export interface Medication {
+  id: string;
+  name: string;
+  dosage: string;
+  frequency: string;
   startDate: string;
   endDate?: string;
-  dosage: string; // Дозировка
-  frequency: string; // Частота приема (например, "2 раза в день")
-  purpose: string; // Цель приема
-  prescribedBy: string; // Кто назначил
-  status: 'active' | 'completed' | 'cancelled';
   notes?: string;
-};
+}
 
-export type HealthCondition = {
+export interface HealthCondition {
   id: string;
-  petId: string;
-  name: string; // Название заболевания/аллергии
-  type: 'allergy' | 'chronic' | 'other';
+  name: string;
   diagnosedDate: string;
-  severity: 'mild' | 'moderate' | 'severe';
-  symptoms: string[];
-  triggers?: string[]; // Триггеры для аллергий
-  treatment?: string; // Текущее лечение
+  status: 'active' | 'resolved';
   notes?: string;
-};
+}
 
 const STORAGE_KEYS = {
-  VACCINATIONS: '@dogfam/vaccinations',
-  DEWORMING: '@dogfam/deworming',
-  VET_VISITS: '@dogfam/vet_visits',
-  MEDICATIONS: '@dogfam/medications',
-  HEALTH_CONDITIONS: '@dogfam/health_conditions',
-} as const;
+  VACCINATIONS: 'dogfam_vaccinations_',
+  DEWORMING: 'dogfam_deworming_',
+  VET_VISITS: 'dogfam_vet_visits_',
+  MEDICATIONS: 'dogfam_medications_',
+  HEALTH_CONDITIONS: 'dogfam_health_conditions_',
+};
 
-export class MedicalStorage {
-  // Вакцинации
-  static async getVaccinations(petId: string): Promise<Vaccination[]> {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEYS.VACCINATIONS);
-      if (!stored) return [];
-      
-      const vaccinations: Vaccination[] = JSON.parse(stored);
-      return vaccinations.filter(v => v.petId === petId);
-    } catch (error) {
-      console.error('Error getting vaccinations:', error);
-      return [];
-    }
+// Генерация уникального ID
+const generateId = () => Math.random().toString(36).substr(2, 9);
+
+// Вакцинации
+export const saveVaccination = async (petId: string, vaccination: Omit<Vaccination, 'id'>) => {
+  try {
+    const key = `${STORAGE_KEYS.VACCINATIONS}${petId}`;
+    const existingData = await AsyncStorage.getItem(key);
+    const vaccinations: Vaccination[] = existingData ? JSON.parse(existingData) : [];
+    
+    const newVaccination = {
+      ...vaccination,
+      id: generateId(),
+    };
+    
+    vaccinations.push(newVaccination);
+    await AsyncStorage.setItem(key, JSON.stringify(vaccinations));
+    return newVaccination;
+  } catch (error) {
+    console.error('Error saving vaccination:', error);
+    throw error;
   }
+};
 
-  static async saveVaccination(vaccination: Vaccination): Promise<void> {
-    try {
-      const vaccinations = await this.getVaccinations(vaccination.petId);
-      const existingIndex = vaccinations.findIndex(v => v.id === vaccination.id);
-      
-      if (existingIndex !== -1) {
-        vaccinations[existingIndex] = vaccination;
-      } else {
-        vaccinations.push(vaccination);
-      }
-
-      await AsyncStorage.setItem(STORAGE_KEYS.VACCINATIONS, JSON.stringify(vaccinations));
-    } catch (error) {
-      console.error('Error saving vaccination:', error);
-    }
+export const getVaccinations = async (petId: string): Promise<Vaccination[]> => {
+  try {
+    const key = `${STORAGE_KEYS.VACCINATIONS}${petId}`;
+    const data = await AsyncStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Error getting vaccinations:', error);
+    throw error;
   }
+};
 
-  static async deleteVaccination(id: string): Promise<void> {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEYS.VACCINATIONS);
-      if (!stored) return;
-
-      const vaccinations: Vaccination[] = JSON.parse(stored);
-      const filtered = vaccinations.filter(v => v.id !== id);
-      await AsyncStorage.setItem(STORAGE_KEYS.VACCINATIONS, JSON.stringify(filtered));
-    } catch (error) {
-      console.error('Error deleting vaccination:', error);
-    }
+// Дегельминтизация
+export const saveDeworming = async (petId: string, deworming: Omit<Deworming, 'id'>) => {
+  try {
+    const key = `${STORAGE_KEYS.DEWORMING}${petId}`;
+    const existingData = await AsyncStorage.getItem(key);
+    const dewormings: Deworming[] = existingData ? JSON.parse(existingData) : [];
+    
+    const newDeworming = {
+      ...deworming,
+      id: generateId(),
+    };
+    
+    dewormings.push(newDeworming);
+    await AsyncStorage.setItem(key, JSON.stringify(dewormings));
+    return newDeworming;
+  } catch (error) {
+    console.error('Error saving deworming:', error);
+    throw error;
   }
+};
 
-  // Дегельминтизация
-  static async getDeworming(petId: string): Promise<Deworming[]> {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEYS.DEWORMING);
-      if (!stored) return [];
-      
-      const deworming: Deworming[] = JSON.parse(stored);
-      return deworming.filter(d => d.petId === petId);
-    } catch (error) {
-      console.error('Error getting deworming:', error);
-      return [];
-    }
+export const getDewormings = async (petId: string): Promise<Deworming[]> => {
+  try {
+    const key = `${STORAGE_KEYS.DEWORMING}${petId}`;
+    const data = await AsyncStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Error getting dewormings:', error);
+    throw error;
   }
+};
 
-  static async saveDeworming(deworming: Deworming): Promise<void> {
-    try {
-      const allDeworming = await this.getDeworming(deworming.petId);
-      const existingIndex = allDeworming.findIndex(d => d.id === deworming.id);
-      
-      if (existingIndex !== -1) {
-        allDeworming[existingIndex] = deworming;
-      } else {
-        allDeworming.push(deworming);
-      }
-
-      await AsyncStorage.setItem(STORAGE_KEYS.DEWORMING, JSON.stringify(allDeworming));
-    } catch (error) {
-      console.error('Error saving deworming:', error);
-    }
+// Визиты к ветеринару
+export const saveVetVisit = async (petId: string, visit: Omit<VetVisit, 'id'>) => {
+  try {
+    const key = `${STORAGE_KEYS.VET_VISITS}${petId}`;
+    const existingData = await AsyncStorage.getItem(key);
+    const visits: VetVisit[] = existingData ? JSON.parse(existingData) : [];
+    
+    const newVisit = {
+      ...visit,
+      id: generateId(),
+    };
+    
+    visits.push(newVisit);
+    await AsyncStorage.setItem(key, JSON.stringify(visits));
+    return newVisit;
+  } catch (error) {
+    console.error('Error saving vet visit:', error);
+    throw error;
   }
+};
 
-  // Визиты к ветеринару
-  static async getVetVisits(petId: string): Promise<VetVisit[]> {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEYS.VET_VISITS);
-      if (!stored) return [];
-      
-      const visits: VetVisit[] = JSON.parse(stored);
-      return visits.filter(v => v.petId === petId);
-    } catch (error) {
-      console.error('Error getting vet visits:', error);
-      return [];
-    }
+export const getVetVisits = async (petId: string): Promise<VetVisit[]> => {
+  try {
+    const key = `${STORAGE_KEYS.VET_VISITS}${petId}`;
+    const data = await AsyncStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Error getting vet visits:', error);
+    throw error;
   }
+};
 
-  static async saveVetVisit(visit: VetVisit): Promise<void> {
-    try {
-      const visits = await this.getVetVisits(visit.petId);
-      const existingIndex = visits.findIndex(v => v.id === visit.id);
-      
-      if (existingIndex !== -1) {
-        visits[existingIndex] = visit;
-      } else {
-        visits.push(visit);
-      }
-
-      await AsyncStorage.setItem(STORAGE_KEYS.VET_VISITS, JSON.stringify(visits));
-    } catch (error) {
-      console.error('Error saving vet visit:', error);
-    }
+// Медикаменты
+export const saveMedication = async (petId: string, medication: Omit<Medication, 'id'>) => {
+  try {
+    const key = `${STORAGE_KEYS.MEDICATIONS}${petId}`;
+    const existingData = await AsyncStorage.getItem(key);
+    const medications: Medication[] = existingData ? JSON.parse(existingData) : [];
+    
+    const newMedication = {
+      ...medication,
+      id: generateId(),
+    };
+    
+    medications.push(newMedication);
+    await AsyncStorage.setItem(key, JSON.stringify(medications));
+    return newMedication;
+  } catch (error) {
+    console.error('Error saving medication:', error);
+    throw error;
   }
+};
 
-  // Медикаменты
-  static async getMedications(petId: string): Promise<Medication[]> {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEYS.MEDICATIONS);
-      if (!stored) return [];
-      
-      const medications: Medication[] = JSON.parse(stored);
-      return medications.filter(m => m.petId === petId);
-    } catch (error) {
-      console.error('Error getting medications:', error);
-      return [];
-    }
+export const getMedications = async (petId: string): Promise<Medication[]> => {
+  try {
+    const key = `${STORAGE_KEYS.MEDICATIONS}${petId}`;
+    const data = await AsyncStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Error getting medications:', error);
+    throw error;
   }
+};
 
-  static async saveMedication(medication: Medication): Promise<void> {
-    try {
-      const medications = await this.getMedications(medication.petId);
-      const existingIndex = medications.findIndex(m => m.id === medication.id);
-      
-      if (existingIndex !== -1) {
-        medications[existingIndex] = medication;
-      } else {
-        medications.push(medication);
-      }
-
-      await AsyncStorage.setItem(STORAGE_KEYS.MEDICATIONS, JSON.stringify(medications));
-    } catch (error) {
-      console.error('Error saving medication:', error);
-    }
+// Состояния здоровья
+export const saveHealthCondition = async (petId: string, condition: Omit<HealthCondition, 'id'>) => {
+  try {
+    const key = `${STORAGE_KEYS.HEALTH_CONDITIONS}${petId}`;
+    const existingData = await AsyncStorage.getItem(key);
+    const conditions: HealthCondition[] = existingData ? JSON.parse(existingData) : [];
+    
+    const newCondition = {
+      ...condition,
+      id: generateId(),
+    };
+    
+    conditions.push(newCondition);
+    await AsyncStorage.setItem(key, JSON.stringify(conditions));
+    return newCondition;
+  } catch (error) {
+    console.error('Error saving health condition:', error);
+    throw error;
   }
+};
 
-  // Хронические заболевания и аллергии
-  static async getHealthConditions(petId: string): Promise<HealthCondition[]> {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEYS.HEALTH_CONDITIONS);
-      if (!stored) return [];
-      
-      const conditions: HealthCondition[] = JSON.parse(stored);
-      return conditions.filter(c => c.petId === petId);
-    } catch (error) {
-      console.error('Error getting health conditions:', error);
-      return [];
-    }
+export const getHealthConditions = async (petId: string): Promise<HealthCondition[]> => {
+  try {
+    const key = `${STORAGE_KEYS.HEALTH_CONDITIONS}${petId}`;
+    const data = await AsyncStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Error getting health conditions:', error);
+    throw error;
   }
-
-  static async saveHealthCondition(condition: HealthCondition): Promise<void> {
-    try {
-      const conditions = await this.getHealthConditions(condition.petId);
-      const existingIndex = conditions.findIndex(c => c.id === condition.id);
-      
-      if (existingIndex !== -1) {
-        conditions[existingIndex] = condition;
-      } else {
-        conditions.push(condition);
-      }
-
-      await AsyncStorage.setItem(STORAGE_KEYS.HEALTH_CONDITIONS, JSON.stringify(conditions));
-    } catch (error) {
-      console.error('Error saving health condition:', error);
-    }
-  }
-
-  // Вспомогательные функции
-  static generateId(): string {
-    return Math.random().toString(36).substring(2) + Date.now().toString(36);
-  }
-} 
+}; 
