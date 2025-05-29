@@ -1,8 +1,10 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeScreen } from '../screens/HomeScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
 import { TrainingScreen } from '../screens/TrainingScreen';
+import { ProfileStack } from './ProfileStack';
+import { WalkScreen } from '../screens/WalkScreen';
+import { FeedingScreen } from '../screens/FeedingScreen';
 import { Ionicons } from '@expo/vector-icons';
 
 const Tab = createBottomTabNavigator();
@@ -19,6 +21,7 @@ export const TabNavigator = () => {
         headerTitleStyle: {
           color: '#000',
         },
+        headerShown: false,
       }}
     >
       <Tab.Screen
@@ -27,6 +30,24 @@ export const TabNavigator = () => {
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Прогулка"
+        component={WalkScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="map" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Питание"
+        component={FeedingScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="restaurant" size={size} color={color} />
           ),
         }}
       />
@@ -41,7 +62,7 @@ export const TabNavigator = () => {
       />
       <Tab.Screen
         name="Профиль"
-        component={ProfileScreen}
+        component={ProfileStack}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />

@@ -6,10 +6,11 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Pet } from '../types/pet';
+import { PetForm } from '../components/PetForm';
 
 // Временные данные для демонстрации
 const mockPet: Pet = {
@@ -42,6 +43,7 @@ const mockPet: Pet = {
 
 export const ProfileScreen = () => {
   const [pet, setPet] = useState<Pet>(mockPet);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const calculateAge = (birthDate: string) => {
     const today = new Date();
@@ -51,74 +53,93 @@ export const ProfileScreen = () => {
   };
 
   const handleEditPress = () => {
-    Alert.alert('Редактирование', 'Здесь будет форма редактирования профиля');
+    setIsEditMode(true);
+  };
+
+  const handleFormSubmit = (updatedPet: Partial<Pet>) => {
+    setPet(prev => ({ ...prev, ...updatedPet }));
+    setIsEditMode(false);
+  };
+
+  const handleFormCancel = () => {
+    setIsEditMode(false);
   };
 
   return (
-    <ScrollView style={styles.scrollView}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Image source={{ uri: pet.photo }} style={styles.photo} />
-          <TouchableOpacity style={styles.editButton} onPress={handleEditPress}>
-            <Ionicons name="create-outline" size={24} color="#007AFF" />
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.name}>{pet.name}</Text>
-        <Text style={styles.breed}>{pet.breed}</Text>
-
-        <View style={styles.infoContainer}>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Возраст</Text>
-            <Text style={styles.infoValue}>{calculateAge(pet.birthDate)} лет</Text>
+    <>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Image source={{ uri: pet.photo }} style={styles.photo} />
+            <TouchableOpacity style={styles.editButton} onPress={handleEditPress}>
+              <Ionicons name="create-outline" size={24} color="#007AFF" />
+            </TouchableOpacity>
           </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Вес</Text>
-            <Text style={styles.infoValue}>{pet.weight} кг</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Пол</Text>
-            <Text style={styles.infoValue}>
-              {pet.gender === 'male' ? 'Мальчик' : 'Девочка'}
-            </Text>
-          </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Прививки</Text>
-          {pet.vaccinations.map((vaccination) => (
-            <View key={vaccination.id} style={styles.vaccinationItem}>
-              <Text style={styles.vaccinationName}>{vaccination.name}</Text>
-              <Text style={styles.vaccinationDate}>
-                Следующая: {vaccination.nextDate}
+          <Text style={styles.name}>{pet.name}</Text>
+          <Text style={styles.breed}>{pet.breed}</Text>
+
+          <View style={styles.infoContainer}>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Возраст</Text>
+              <Text style={styles.infoValue}>{calculateAge(pet.birthDate)} лет</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Вес</Text>
+              <Text style={styles.infoValue}>{pet.weight} кг</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Пол</Text>
+              <Text style={styles.infoValue}>
+                {pet.gender === 'male' ? 'Мальчик' : 'Девочка'}
               </Text>
             </View>
-          ))}
-        </View>
+          </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Медицинская карта</Text>
-          {pet.medicalRecords.map((record) => (
-            <View key={record.id} style={styles.recordItem}>
-              <Text style={styles.recordDate}>{record.date}</Text>
-              <Text style={styles.recordDescription}>{record.description}</Text>
-              <Text style={styles.recordDoctor}>{record.doctor}</Text>
-            </View>
-          ))}
-        </View>
-
-        {pet.allergies.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Аллергии</Text>
-            {pet.allergies.map((allergy, index) => (
-              <Text key={index} style={styles.allergyItem}>
-                • {allergy}
-              </Text>
+            <Text style={styles.sectionTitle}>Прививки</Text>
+            {pet.vaccinations.map((vaccination) => (
+              <View key={vaccination.id} style={styles.vaccinationItem}>
+                <Text style={styles.vaccinationName}>{vaccination.name}</Text>
+                <Text style={styles.vaccinationDate}>
+                  Следующая: {vaccination.nextDate}
+                </Text>
+              </View>
             ))}
           </View>
-        )}
-      </View>
-    </ScrollView>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Медицинская карта</Text>
+            {pet.medicalRecords.map((record) => (
+              <View key={record.id} style={styles.recordItem}>
+                <Text style={styles.recordDate}>{record.date}</Text>
+                <Text style={styles.recordDescription}>{record.description}</Text>
+                <Text style={styles.recordDoctor}>{record.doctor}</Text>
+              </View>
+            ))}
+          </View>
+
+          {pet.allergies.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Аллергии</Text>
+              {pet.allergies.map((allergy, index) => (
+                <Text key={index} style={styles.allergyItem}>
+                  • {allergy}
+                </Text>
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      <Modal visible={isEditMode} animationType="slide">
+        <PetForm
+          initialData={pet}
+          onSubmit={handleFormSubmit}
+          onCancel={handleFormCancel}
+        />
+      </Modal>
+    </>
   );
 };
 
