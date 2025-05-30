@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Image,
   Modal,
   TouchableOpacity,
   Alert,
+  Animated,
+  Pressable,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,8 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Pet } from '../types/pet';
 import { PetForm } from '../components/PetForm';
 import { Card } from '../components/Card';
-import { Button } from '../components/Button';
-import { colors, typography, spacing, borderRadius } from '../theme/theme';
+import { colors, typography, spacing, borderRadius, shadows } from '../theme/theme';
 import { PetStorage } from '../data/petStorage';
 
 // Временные данные для демонстрации
@@ -51,11 +52,22 @@ const mockPet: Pet = {
 export const ProfileScreen = () => {
   const [pet, setPet] = useState<Pet>(mockPet);
   const [isEditMode, setIsEditMode] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true }
+  );
 
   const calculateAge = (birthDate: string) => {
     const today = new Date();
     const birth = new Date(birthDate);
     const age = today.getFullYear() - birth.getFullYear();
+    const months = today.getMonth() - birth.getMonth();
+    
+    if (months < 0 || (months === 0 && today.getDate() < birth.getDate())) {
+      return age - 1;
+    }
     return age;
   };
 
@@ -144,98 +156,135 @@ export const ProfileScreen = () => {
     setIsEditMode(false);
   };
 
+  const handleLongPress = (section: string) => {
+    Alert.alert(
+      'Редактировать',
+      `Хотите отредактировать раздел "${section}"?`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Редактировать', onPress: () => handleEditPress() }
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <View style={styles.photoContainer}>
-            <Image source={{ uri: pet.photo }} style={styles.photo} />
-            <TouchableOpacity
-              style={styles.editPhotoButton}
-              onPress={handlePhotoPress}
-            >
-              <Ionicons name="camera" size={24} color={colors.text.light} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.nameContainer}>
-            <Text style={styles.name}>{pet.name}</Text>
-            <Text style={styles.breed}>{pet.breed}</Text>
-            <TouchableOpacity
-              style={styles.editProfileButton}
-              onPress={handleEditPress}
-            >
-              <Ionicons name="create-outline" size={20} color={colors.primary} />
-              <Text style={styles.editProfileText}>Редактировать профиль</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Фиксированный хедер с фото */}
+      <View style={styles.header}>
+        <View style={styles.photoContainer}>
+          <Image source={{ uri: pet.photo }} style={styles.photo} />
+          <TouchableOpacity
+            style={styles.editPhotoButton}
+            onPress={handlePhotoPress}
+          >
+            <Ionicons name="camera" size={20} color={colors.text.light} />
+          </TouchableOpacity>
         </View>
+        
+        <Text style={styles.name}>{pet.name}</Text>
+        <Text style={styles.breed}>{pet.breed}</Text>
+      </View>
 
-        <Card variant="subtle" style={styles.infoCard}>
-          <View style={styles.infoContainer}>
-            <View style={styles.infoItem}>
-              <Ionicons name="calendar" size={24} color={colors.primary} />
-              <Text style={styles.infoValue}>{calculateAge(pet.birthDate)} лет</Text>
-              <Text style={styles.infoLabel}>Возраст</Text>
+      {/* Основной контент */}
+      <Animated.ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
+        {/* Карточка статистики */}
+        <Card style={styles.statsCard}>
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{calculateAge(pet.birthDate)}</Text>
+              <Text style={styles.statLabel}>лет</Text>
             </View>
-            <View style={styles.infoItem}>
-              <Ionicons name="scale" size={24} color={colors.primary} />
-              <Text style={styles.infoValue}>{pet.weight} кг</Text>
-              <Text style={styles.infoLabel}>Вес</Text>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{pet.weight}</Text>
+              <Text style={styles.statLabel}>кг</Text>
             </View>
-            <View style={styles.infoItem}>
-              <Ionicons name={pet.gender === 'male' ? 'male' : 'female'} size={24} color={colors.primary} />
-              <Text style={styles.infoValue}>
-                {pet.gender === 'male' ? 'Мальчик' : 'Девочка'}
-              </Text>
-              <Text style={styles.infoLabel}>Пол</Text>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{pet.gender === 'male' ? '♂' : '♀'}</Text>
+              <Text style={styles.statLabel}>пол</Text>
             </View>
           </View>
         </Card>
 
+        {/* Секция здоровья */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Прививки</Text>
-          {pet.vaccinations.map((vaccination) => (
-            <Card key={vaccination.id} style={styles.itemCard}>
-              <View style={styles.vaccinationItem}>
-                <View style={styles.itemHeader}>
+          <Text style={styles.sectionTitle}>Здоровье</Text>
+          
+          {/* Прививки */}
+          <Pressable onLongPress={() => handleLongPress('Прививки')}>
+            <Card style={styles.healthCard}>
+              <View style={styles.healthCardHeader}>
+                <View style={[styles.iconContainer, { backgroundColor: `${colors.primary}15` }]}>
                   <Ionicons name="medical" size={20} color={colors.primary} />
-                  <Text style={styles.vaccinationName}>{vaccination.name}</Text>
                 </View>
-                <Text style={styles.vaccinationDate}>
-                  Следующая: {vaccination.nextDate}
-                </Text>
+                <Text style={styles.healthCardTitle}>Прививки</Text>
               </View>
-            </Card>
-          ))}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Медицинская карта</Text>
-          {pet.medicalRecords.map((record) => (
-            <Card key={record.id} style={styles.itemCard}>
-              <View style={styles.recordItem}>
-                <Text style={styles.recordDate}>{record.date}</Text>
-                <Text style={styles.recordDescription}>{record.description}</Text>
-                <Text style={styles.recordDoctor}>{record.doctor}</Text>
-              </View>
-            </Card>
-          ))}
-        </View>
-
-        {pet.allergies.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Аллергии</Text>
-            <Card style={styles.itemCard}>
-              {pet.allergies.map((allergy, index) => (
-                <Text key={index} style={styles.allergyItem}>
-                  • {allergy}
-                </Text>
+              {pet.vaccinations.map((vaccination) => (
+                <View key={vaccination.id} style={styles.healthItem}>
+                  <Text style={styles.healthItemTitle}>{vaccination.name}</Text>
+                  <Text style={styles.healthItemDate}>Следующая: {vaccination.nextDate}</Text>
+                </View>
               ))}
             </Card>
-          </View>
-        )}
-      </ScrollView>
+          </Pressable>
+
+          {/* Медкарта */}
+          <Pressable onLongPress={() => handleLongPress('Медкарта')}>
+            <Card style={styles.healthCard}>
+              <View style={styles.healthCardHeader}>
+                <View style={[styles.iconContainer, { backgroundColor: `${colors.accent}15` }]}>
+                  <Ionicons name="fitness" size={20} color={colors.accent} />
+                </View>
+                <Text style={styles.healthCardTitle}>Медкарта</Text>
+              </View>
+              {pet.medicalRecords.map((record) => (
+                <View key={record.id} style={styles.healthItem}>
+                  <Text style={styles.healthItemTitle}>{record.description}</Text>
+                  <Text style={styles.healthItemSubtitle}>{record.doctor}</Text>
+                  <Text style={styles.healthItemDate}>{record.date}</Text>
+                </View>
+              ))}
+            </Card>
+          </Pressable>
+
+          {/* Аллергии */}
+          {pet.allergies.length > 0 && (
+            <Pressable onLongPress={() => handleLongPress('Аллергии')}>
+              <Card style={styles.healthCard}>
+                <View style={styles.healthCardHeader}>
+                  <View style={[styles.iconContainer, { backgroundColor: `${colors.error}15` }]}>
+                    <Ionicons name="warning" size={20} color={colors.error} />
+                  </View>
+                  <Text style={styles.healthCardTitle}>Аллергии</Text>
+                </View>
+                <View style={styles.allergyList}>
+                  {pet.allergies.map((allergy, index) => (
+                    <View key={index} style={styles.allergyItem}>
+                      <View style={styles.allergyDot} />
+                      <Text style={styles.allergyText}>{allergy}</Text>
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            </Pressable>
+          )}
+        </View>
+      </Animated.ScrollView>
+
+      {/* Плавающая кнопка редактирования */}
+      <TouchableOpacity
+        style={styles.editButton}
+        onPress={handleEditPress}
+      >
+        <Ionicons name="create-outline" size={24} color={colors.text.light} />
+      </TouchableOpacity>
 
       <Modal 
         visible={isEditMode} 
@@ -257,143 +306,180 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollView: {
-    flex: 1,
-  },
   header: {
-    padding: spacing.md,
     alignItems: 'center',
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.background,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    ...shadows.small,
   },
   photoContainer: {
     position: 'relative',
-    marginBottom: spacing.xl,
-    alignItems: 'center',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: spacing.md,
+    ...shadows.medium,
   },
   photo: {
-    width: 150,
-    height: 150,
-    borderRadius: borderRadius.circle,
-    borderWidth: 4,
-    borderColor: colors.primary,
+    width: '100%',
+    height: '100%',
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: colors.background,
   },
   editPhotoButton: {
     position: 'absolute',
     bottom: 0,
     right: 0,
     backgroundColor: colors.primary,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.text.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-    zIndex: 2,
-  },
-  nameContainer: {
-    alignItems: 'center',
-    marginTop: spacing.md,
+    ...shadows.small,
   },
   name: {
     ...typography.h1,
     color: colors.text.primary,
+    marginBottom: spacing.xs,
     textAlign: 'center',
+    fontWeight: 700,
   },
   breed: {
-    ...typography.body1,
+    ...typography.body2,
     color: colors.text.secondary,
     textAlign: 'center',
-    marginTop: spacing.xs,
+    fontWeight: 400,
   },
-  editProfileButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  statsCard: {
+    backgroundColor: colors.card,
     borderRadius: borderRadius.large,
-    marginTop: spacing.xl,
-    gap: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.border,
-    zIndex: 1,
+    marginBottom: spacing.xl,
+    padding: spacing.lg,
   },
-  editProfileText: {
-    ...typography.body2,
-    color: colors.primary,
-  },
-  infoCard: {
-    margin: spacing.md,
-  },
-  infoContainer: {
+  statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: spacing.md,
-  },
-  infoItem: {
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  infoLabel: {
-    ...typography.caption,
-    color: colors.text.secondary,
-    marginTop: spacing.xs,
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
   },
-  infoValue: {
-    ...typography.h3,
-    color: colors.text.primary,
-    marginTop: spacing.xs,
-  },
-  section: {
-    padding: spacing.md,
-  },
-  sectionTitle: {
+  statValue: {
     ...typography.h2,
     color: colors.text.primary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  itemCard: {
-    marginBottom: spacing.sm,
+  statLabel: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    fontWeight: 400,
   },
-  vaccinationItem: {
-    padding: spacing.md,
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: `${colors.text.secondary}15`,
+    marginHorizontal: spacing.md,
   },
-  itemHeader: {
+  section: {
+    marginBottom: spacing.xl,
+  },
+  sectionTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+    marginBottom: spacing.md,
+    marginLeft: spacing.xs,
+  },
+  healthCard: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+  },
+  healthCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-  vaccinationName: {
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  healthCardTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+    fontWeight: 600,
+  },
+  healthItem: {
+    marginBottom: spacing.md,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: `${colors.text.secondary}10`,
+  },
+  healthItemTitle: {
     ...typography.body1,
     color: colors.text.primary,
-    fontWeight: '600',
+    marginBottom: spacing.xs,
+    fontWeight: 500,
   },
-  vaccinationDate: {
+  healthItemSubtitle: {
+    ...typography.body2,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
+    fontWeight: '400',
+  },
+  healthItemDate: {
     ...typography.caption,
     color: colors.text.secondary,
-    marginTop: spacing.xs,
+    fontWeight: 400,
   },
-  recordItem: {
-    padding: spacing.md,
-  },
-  recordDate: {
-    ...typography.caption,
-    color: colors.text.secondary,
-  },
-  recordDescription: {
-    ...typography.body1,
-    color: colors.text.primary,
-    marginVertical: spacing.xs,
-  },
-  recordDoctor: {
-    ...typography.caption,
-    color: colors.text.secondary,
+  allergyList: {
+    marginTop: spacing.sm,
   },
   allergyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  allergyDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.error,
+    marginRight: spacing.sm,
+  },
+  allergyText: {
     ...typography.body1,
     color: colors.text.primary,
-    padding: spacing.sm,
+    fontWeight: '400',
+  },
+  editButton: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.medium,
   },
 }); 

@@ -1,0 +1,4 @@
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>Приложению нужен доступ к геолокации для отслеживания маршрута прогулки</string>
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>Приложению нужен доступ к геолокации для отслеживания маршрута прогулки в фоновом режиме</string> 
