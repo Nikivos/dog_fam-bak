@@ -1,216 +1,128 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BaseStorage, BaseEntity } from './baseStorage';
 
-export interface Vaccination {
-  id: string;
+export interface Vaccination extends BaseEntity {
   name: string;
   date: string;
   nextDate: string;
   notes?: string;
+  petId: string;
 }
 
-export interface Deworming {
-  id: string;
+export interface Deworming extends BaseEntity {
   date: string;
   medicine: string;
   nextDate: string;
   notes?: string;
+  petId: string;
 }
 
-export interface VetVisit {
-  id: string;
+export interface VetVisit extends BaseEntity {
   date: string;
   reason: string;
   diagnosis?: string;
   prescription?: string;
   nextVisit?: string;
   notes?: string;
+  petId: string;
 }
 
-export interface Medication {
-  id: string;
+export interface Medication extends BaseEntity {
   name: string;
   dosage: string;
   frequency: string;
   startDate: string;
   endDate?: string;
   notes?: string;
+  petId: string;
 }
 
-export interface HealthCondition {
-  id: string;
+export interface HealthCondition extends BaseEntity {
   name: string;
   diagnosedDate: string;
   status: 'active' | 'resolved';
   notes?: string;
+  petId: string;
 }
 
 const STORAGE_KEYS = {
-  VACCINATIONS: 'dogfam_vaccinations_',
-  DEWORMING: 'dogfam_deworming_',
-  VET_VISITS: 'dogfam_vet_visits_',
-  MEDICATIONS: 'dogfam_medications_',
-  HEALTH_CONDITIONS: 'dogfam_health_conditions_',
+  VACCINATIONS: '@dogfam:vaccinations_',
+  DEWORMING: '@dogfam:deworming_',
+  VET_VISITS: '@dogfam:vet_visits_',
+  MEDICATIONS: '@dogfam:medications_',
+  HEALTH_CONDITIONS: '@dogfam:health_conditions_',
 };
 
-// Генерация уникального ID
-const generateId = () => Math.random().toString(36).substr(2, 9);
+export class VaccinationStorage extends BaseStorage<Vaccination> {
+  private static instances: Map<string, VaccinationStorage> = new Map();
 
-// Вакцинации
-export const saveVaccination = async (petId: string, vaccination: Omit<Vaccination, 'id'>) => {
-  try {
-    const key = `${STORAGE_KEYS.VACCINATIONS}${petId}`;
-    const existingData = await AsyncStorage.getItem(key);
-    const vaccinations: Vaccination[] = existingData ? JSON.parse(existingData) : [];
-    
-    const newVaccination = {
-      ...vaccination,
-      id: generateId(),
-    };
-    
-    vaccinations.push(newVaccination);
-    await AsyncStorage.setItem(key, JSON.stringify(vaccinations));
-    return newVaccination;
-  } catch (error) {
-    console.error('Error saving vaccination:', error);
-    throw error;
+  private constructor(petId: string) {
+    super(`${STORAGE_KEYS.VACCINATIONS}${petId}`, 'Vaccination');
   }
-};
 
-export const getVaccinations = async (petId: string): Promise<Vaccination[]> => {
-  try {
-    const key = `${STORAGE_KEYS.VACCINATIONS}${petId}`;
-    const data = await AsyncStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
-    console.error('Error getting vaccinations:', error);
-    throw error;
+  static getInstance(petId: string): VaccinationStorage {
+    if (!this.instances.has(petId)) {
+      this.instances.set(petId, new VaccinationStorage(petId));
+    }
+    return this.instances.get(petId)!;
   }
-};
+}
 
-// Дегельминтизация
-export const saveDeworming = async (petId: string, deworming: Omit<Deworming, 'id'>) => {
-  try {
-    const key = `${STORAGE_KEYS.DEWORMING}${petId}`;
-    const existingData = await AsyncStorage.getItem(key);
-    const dewormings: Deworming[] = existingData ? JSON.parse(existingData) : [];
-    
-    const newDeworming = {
-      ...deworming,
-      id: generateId(),
-    };
-    
-    dewormings.push(newDeworming);
-    await AsyncStorage.setItem(key, JSON.stringify(dewormings));
-    return newDeworming;
-  } catch (error) {
-    console.error('Error saving deworming:', error);
-    throw error;
-  }
-};
+export class DewormingStorage extends BaseStorage<Deworming> {
+  private static instances: Map<string, DewormingStorage> = new Map();
 
-export const getDewormings = async (petId: string): Promise<Deworming[]> => {
-  try {
-    const key = `${STORAGE_KEYS.DEWORMING}${petId}`;
-    const data = await AsyncStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
-    console.error('Error getting dewormings:', error);
-    throw error;
+  private constructor(petId: string) {
+    super(`${STORAGE_KEYS.DEWORMING}${petId}`, 'Deworming');
   }
-};
 
-// Визиты к ветеринару
-export const saveVetVisit = async (petId: string, visit: Omit<VetVisit, 'id'>) => {
-  try {
-    const key = `${STORAGE_KEYS.VET_VISITS}${petId}`;
-    const existingData = await AsyncStorage.getItem(key);
-    const visits: VetVisit[] = existingData ? JSON.parse(existingData) : [];
-    
-    const newVisit = {
-      ...visit,
-      id: generateId(),
-    };
-    
-    visits.push(newVisit);
-    await AsyncStorage.setItem(key, JSON.stringify(visits));
-    return newVisit;
-  } catch (error) {
-    console.error('Error saving vet visit:', error);
-    throw error;
+  static getInstance(petId: string): DewormingStorage {
+    if (!this.instances.has(petId)) {
+      this.instances.set(petId, new DewormingStorage(petId));
+    }
+    return this.instances.get(petId)!;
   }
-};
+}
 
-export const getVetVisits = async (petId: string): Promise<VetVisit[]> => {
-  try {
-    const key = `${STORAGE_KEYS.VET_VISITS}${petId}`;
-    const data = await AsyncStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
-    console.error('Error getting vet visits:', error);
-    throw error;
-  }
-};
+export class VetVisitStorage extends BaseStorage<VetVisit> {
+  private static instances: Map<string, VetVisitStorage> = new Map();
 
-// Медикаменты
-export const saveMedication = async (petId: string, medication: Omit<Medication, 'id'>) => {
-  try {
-    const key = `${STORAGE_KEYS.MEDICATIONS}${petId}`;
-    const existingData = await AsyncStorage.getItem(key);
-    const medications: Medication[] = existingData ? JSON.parse(existingData) : [];
-    
-    const newMedication = {
-      ...medication,
-      id: generateId(),
-    };
-    
-    medications.push(newMedication);
-    await AsyncStorage.setItem(key, JSON.stringify(medications));
-    return newMedication;
-  } catch (error) {
-    console.error('Error saving medication:', error);
-    throw error;
+  private constructor(petId: string) {
+    super(`${STORAGE_KEYS.VET_VISITS}${petId}`, 'VetVisit');
   }
-};
 
-export const getMedications = async (petId: string): Promise<Medication[]> => {
-  try {
-    const key = `${STORAGE_KEYS.MEDICATIONS}${petId}`;
-    const data = await AsyncStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
-    console.error('Error getting medications:', error);
-    throw error;
+  static getInstance(petId: string): VetVisitStorage {
+    if (!this.instances.has(petId)) {
+      this.instances.set(petId, new VetVisitStorage(petId));
+    }
+    return this.instances.get(petId)!;
   }
-};
+}
 
-// Состояния здоровья
-export const saveHealthCondition = async (petId: string, condition: Omit<HealthCondition, 'id'>) => {
-  try {
-    const key = `${STORAGE_KEYS.HEALTH_CONDITIONS}${petId}`;
-    const existingData = await AsyncStorage.getItem(key);
-    const conditions: HealthCondition[] = existingData ? JSON.parse(existingData) : [];
-    
-    const newCondition = {
-      ...condition,
-      id: generateId(),
-    };
-    
-    conditions.push(newCondition);
-    await AsyncStorage.setItem(key, JSON.stringify(conditions));
-    return newCondition;
-  } catch (error) {
-    console.error('Error saving health condition:', error);
-    throw error;
-  }
-};
+export class MedicationStorage extends BaseStorage<Medication> {
+  private static instances: Map<string, MedicationStorage> = new Map();
 
-export const getHealthConditions = async (petId: string): Promise<HealthCondition[]> => {
-  try {
-    const key = `${STORAGE_KEYS.HEALTH_CONDITIONS}${petId}`;
-    const data = await AsyncStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
-    console.error('Error getting health conditions:', error);
-    throw error;
+  private constructor(petId: string) {
+    super(`${STORAGE_KEYS.MEDICATIONS}${petId}`, 'Medication');
   }
-}; 
+
+  static getInstance(petId: string): MedicationStorage {
+    if (!this.instances.has(petId)) {
+      this.instances.set(petId, new MedicationStorage(petId));
+    }
+    return this.instances.get(petId)!;
+  }
+}
+
+export class HealthConditionStorage extends BaseStorage<HealthCondition> {
+  private static instances: Map<string, HealthConditionStorage> = new Map();
+
+  private constructor(petId: string) {
+    super(`${STORAGE_KEYS.HEALTH_CONDITIONS}${petId}`, 'HealthCondition');
+  }
+
+  static getInstance(petId: string): HealthConditionStorage {
+    if (!this.instances.has(petId)) {
+      this.instances.set(petId, new HealthConditionStorage(petId));
+    }
+    return this.instances.get(petId)!;
+  }
+} 

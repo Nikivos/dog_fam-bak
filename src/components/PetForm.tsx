@@ -193,9 +193,10 @@ export const PetForm: React.FC<PetFormProps> = ({ initialData, onSubmit, onCance
         <TouchableOpacity
           style={styles.closeButton}
           onPress={handleClose}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           activeOpacity={0.7}
         >
-          <Ionicons name="close" size={28} color={colors.text.secondary} />
+          <Ionicons name="close" size={32} color={colors.text.secondary} />
         </TouchableOpacity>
       </View>
 

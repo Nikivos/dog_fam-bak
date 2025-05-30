@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, Polyline } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Card } from '../components/Card';
+import { Button } from '../components/Button';
+import { colors, typography, spacing, shadows, borderRadius } from '../theme/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -11,15 +12,30 @@ export const WalkScreen = () => {
   const [isWalking, setIsWalking] = useState(false);
   const [distance, setDistance] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  const handleStartWalk = () => {
-    setIsWalking(true);
-    // TODO: Start tracking location
+  const handleStartWalk = async () => {
+    setLoading(true);
+    try {
+      setIsWalking(true);
+      // TODO: Start tracking location
+    } catch (error) {
+      console.error('Failed to start walk:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleStopWalk = () => {
-    setIsWalking(false);
-    // TODO: Stop tracking location
+  const handleStopWalk = async () => {
+    setLoading(true);
+    try {
+      setIsWalking(false);
+      // TODO: Stop tracking location
+    } catch (error) {
+      console.error('Failed to stop walk:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatDuration = (seconds: number) => {
@@ -30,63 +46,56 @@ export const WalkScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Прогулка</Text>
+        <Text style={styles.subtitle}>Следите за маршрутом</Text>
+      </View>
+
       <View style={styles.mapContainer}>
-        <MapView
-          style={styles.map}
-          initialRegion={{
-            latitude: 55.7558,
-            longitude: 37.6173,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-          }}
-        />
+        <Card variant="elevated" style={styles.mapCard}>
+          <View style={styles.mapPlaceholder}>
+            <Ionicons name="map-outline" size={48} color={colors.text.secondary} />
+            <Text style={styles.placeholderText}>Карта временно недоступна</Text>
+          </View>
+        </Card>
       </View>
 
       <View style={styles.statsContainer}>
-        <View style={[styles.statsCard, styles.elevation]}>
-          <LinearGradient
-            colors={['#4facfe', '#00f2fe']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.gradientCard}
-          >
-            <View style={styles.statsContent}>
-              <Text style={styles.statsTitle}>Расстояние</Text>
-              <Text style={styles.statsValue}>{distance.toFixed(1)} км</Text>
-            </View>
-          </LinearGradient>
-        </View>
-        <View style={[styles.statsCard, styles.elevation]}>
-          <LinearGradient
-            colors={['#667eea', '#764ba2']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.gradientCard}
-          >
-            <View style={styles.statsContent}>
-              <Text style={styles.statsTitle}>Время</Text>
-              <Text style={styles.statsValue}>{formatDuration(duration)}</Text>
-            </View>
-          </LinearGradient>
-        </View>
+        <Card variant="elevated" style={styles.statsCard}>
+          <View style={styles.statsContent}>
+            <Ionicons name="walk" size={24} color={colors.primary} />
+            <Text style={styles.statsValue}>{distance.toFixed(1)} км</Text>
+            <Text style={styles.statsLabel}>Расстояние</Text>
+          </View>
+        </Card>
+
+        <Card variant="elevated" style={styles.statsCard}>
+          <View style={styles.statsContent}>
+            <Ionicons name="time" size={24} color={colors.primary} />
+            <Text style={styles.statsValue}>{formatDuration(duration)}</Text>
+            <Text style={styles.statsLabel}>Время</Text>
+          </View>
+        </Card>
       </View>
 
-      <TouchableOpacity
-        style={[styles.actionButton, styles.elevation]}
-        onPress={isWalking ? handleStopWalk : handleStartWalk}
-      >
-        <LinearGradient
-          colors={isWalking ? ['#FF3B30', '#FF3B30'] : ['#4facfe', '#00f2fe']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.actionGradient}
+      <View style={styles.actionContainer}>
+        <Button
+          variant={isWalking ? "danger" : "primary"}
+          size="large"
+          loading={loading}
+          onPress={isWalking ? handleStopWalk : handleStartWalk}
+          icon={
+            <Ionicons
+              name={isWalking ? "stop" : "play"}
+              size={24}
+              color={colors.text.light}
+            />
+          }
+          style={styles.actionButton}
         >
-          <Ionicons name={isWalking ? 'stop' : 'play'} size={24} color="#fff" />
-          <Text style={styles.actionText}>
-            {isWalking ? 'Закончить прогулку' : 'Начать прогулку'}
-          </Text>
-        </LinearGradient>
-      </TouchableOpacity>
+          {isWalking ? 'Закончить прогулку' : 'Начать прогулку'}
+        </Button>
+      </View>
     </SafeAreaView>
   );
 };
@@ -94,65 +103,65 @@ export const WalkScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
+  },
+  header: {
+    padding: spacing.md,
+  },
+  title: {
+    ...typography.h1,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    ...typography.body1,
+    color: colors.text.secondary,
   },
   mapContainer: {
     flex: 1,
-    marginBottom: 16,
+    padding: spacing.md,
   },
-  map: {
+  mapCard: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  mapPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.medium,
+  },
+  placeholderText: {
+    ...typography.body1,
+    color: colors.text.secondary,
+    marginTop: spacing.sm,
   },
   statsContainer: {
     flexDirection: 'row',
-    gap: 16,
-    padding: 16,
+    gap: spacing.md,
+    padding: spacing.md,
   },
   statsCard: {
     flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  elevation: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  gradientCard: {
-    padding: 16,
-    height: 100,
   },
   statsContent: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  statsTitle: {
-    fontSize: 14,
-    color: '#fff',
-    opacity: 0.8,
+    alignItems: 'center',
+    padding: spacing.md,
   },
   statsValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    ...typography.h2,
+    color: colors.text.primary,
+    marginVertical: spacing.xs,
+  },
+  statsLabel: {
+    ...typography.caption,
+    color: colors.text.secondary,
+  },
+  actionContainer: {
+    padding: spacing.md,
   },
   actionButton: {
-    margin: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  actionGradient: {
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  actionText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#fff',
+    width: '100%',
   },
 }); 

@@ -19,9 +19,10 @@ type NavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
 export const PetList = () => {
   const [pets, setPets] = useState<Pet[]>([]);
   const navigation = useNavigation<NavigationProp>();
+  const petStorage = PetStorage.getInstance();
 
   const loadPets = async () => {
-    const loadedPets = await PetStorage.getAllPets();
+    const loadedPets = await petStorage.getAllPets();
     console.log('Loaded pets:', loadedPets); // Добавим для отладки
     setPets(loadedPets);
   };
@@ -50,7 +51,7 @@ export const PetList = () => {
           text: 'Удалить',
           style: 'destructive',
           onPress: async () => {
-            await PetStorage.deletePet(pet.id);
+            await petStorage.deletePet(pet.id);
             await loadPets();
           },
         },

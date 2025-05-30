@@ -30,27 +30,45 @@ export const calculateRER = (weightKg: number): number => {
   return 70 * Math.pow(weightKg, 0.75);
 };
 
-/**
- * Рассчитывает дневную потребность в калориях
- */
-export const calculateDailyCalories = ({
-  weightKg,
-  activityLevel,
-  healthCondition,
-  lifeStage,
-}: {
+interface CalorieParams {
   weightKg: number;
-  activityLevel: ActivityLevel;
-  healthCondition: HealthCondition;
-  lifeStage: LifeStage;
-}): number => {
-  const rer = calculateRER(weightKg);
-  const activityMultiplier = ACTIVITY_MULTIPLIERS[activityLevel];
-  const healthMultiplier = HEALTH_MULTIPLIERS[healthCondition];
-  const lifeStageMultiplier = LIFE_STAGE_MULTIPLIERS[lifeStage];
+  activityLevel: 'low' | 'medium' | 'high';
+  healthCondition: 'healthy' | 'overweight' | 'underweight';
+  lifeStage: 'puppy' | 'adult' | 'senior';
+}
 
-  return Math.round(rer * activityMultiplier * healthMultiplier * lifeStageMultiplier);
-};
+export function calculateDailyCalories(params: CalorieParams): number {
+  const { weightKg, activityLevel, healthCondition, lifeStage } = params;
+
+  // Базовый расчет: 30 * вес + 70 для взрослой здоровой собаки
+  let baseCalories = 30 * weightKg + 70;
+
+  // Коэффициенты активности
+  const activityMultiplier = {
+    low: 1.2,
+    medium: 1.4,
+    high: 1.6,
+  }[activityLevel];
+
+  // Коэффициенты состояния здоровья
+  const healthMultiplier = {
+    healthy: 1.0,
+    overweight: 0.8,
+    underweight: 1.2,
+  }[healthCondition];
+
+  // Коэффициенты возраста
+  const lifeStageMultiplier = {
+    puppy: 2.0,
+    adult: 1.0,
+    senior: 0.8,
+  }[lifeStage];
+
+  // Итоговый расчет
+  const dailyCalories = baseCalories * activityMultiplier * healthMultiplier * lifeStageMultiplier;
+
+  return Math.round(dailyCalories);
+}
 
 /**
  * Рассчитывает рекомендуемый размер порции в граммах

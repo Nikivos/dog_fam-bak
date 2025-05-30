@@ -12,7 +12,9 @@ import { DewormingForm } from '../components/DewormingForm';
 import { VetVisitForm } from '../components/VetVisitForm';
 import { MedicationForm } from '../components/MedicationForm';
 import { HealthConditionForm } from '../components/HealthConditionForm';
+import { MealForm } from '../components/MealForm';
 import { Ionicons } from '@expo/vector-icons';
+import { colors, typography } from '../theme/theme';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -20,13 +22,24 @@ const Stack = createStackNavigator();
 const TabScreens = () => (
   <Tab.Navigator
     screenOptions={{
-      tabBarActiveTintColor: '#007AFF',
-      tabBarInactiveTintColor: '#8E8E93',
+      tabBarActiveTintColor: colors.primary,
+      tabBarInactiveTintColor: colors.text.secondary,
+      tabBarStyle: {
+        backgroundColor: colors.background,
+        borderTopWidth: 0,
+        elevation: 0,
+        shadowOpacity: 0,
+        height: 60,
+        paddingBottom: 8,
+      },
       headerStyle: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.background,
+        elevation: 0,
+        shadowOpacity: 0,
       },
       headerTitleStyle: {
-        color: '#000',
+        ...typography.h2,
+        color: colors.text.primary,
       },
       headerShown: false,
     }}
@@ -80,7 +93,20 @@ const TabScreens = () => (
 );
 
 const MainStack = () => (
-  <Stack.Navigator>
+  <Stack.Navigator
+    screenOptions={{
+      headerStyle: {
+        backgroundColor: colors.background,
+        elevation: 0,
+        shadowOpacity: 0,
+      },
+      headerTitleStyle: {
+        ...typography.h2,
+        color: colors.text.primary,
+      },
+      headerTintColor: colors.primary,
+    }}
+  >
     <Stack.Screen
       name="TabScreens"
       component={TabScreens}
@@ -90,6 +116,11 @@ const MainStack = () => (
       name="Medical"
       component={MedicalScreen}
       options={{ title: 'Медицинский дневник' }}
+    />
+    <Stack.Screen
+      name="MealForm"
+      component={MealForm}
+      options={{ title: 'Прием пищи' }}
     />
     <Stack.Screen
       name="AddVaccination"

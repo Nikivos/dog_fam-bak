@@ -13,63 +13,38 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { saveMedication } from '../data/medicalStorage';
+import { Medication, MedicationStorage } from '../data/medicalStorage';
+import { Button } from './Button';
+import { Card } from './Card';
+import { colors, typography, spacing } from '../theme/theme';
 
 type RootStackParamList = {
   AddMedication: { petId: string };
 };
 
-type NavigationProp = StackNavigationProp<RootStackParamList>;
-type MedicationFormRouteProp = RouteProp<RootStackParamList, 'AddMedication'>;
+type AddMedicationRouteProp = RouteProp<RootStackParamList, 'AddMedication'>;
+type AddMedicationNavigationProp = StackNavigationProp<RootStackParamList>;
 
 export const MedicationForm = () => {
-  const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<MedicationFormRouteProp>();
+  const navigation = useNavigation<AddMedicationNavigationProp>();
+  const route = useRoute<AddMedicationRouteProp>();
   const { petId } = route.params;
 
-  const [name, setName] = useState('');
-  const [dosage, setDosage] = useState('');
-  const [frequency, setFrequency] = useState('');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState('');
-  const [notes, setNotes] = useState('');
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [currentPicker, setCurrentPicker] = useState<'start' | 'end'>('start');
+  const [medication, setMedication] = useState<Partial<Medication>>({
+    name: '',
+    dosage: '',
+    frequency: '',
+    startDate: new Date().toISOString().split('T')[0],
+    petId,
+  });
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowStartDatePicker(false);
-    setShowEndDatePicker(false);
-
-    if (selectedDate) {
-      const formattedDate = selectedDate.toISOString().split('T')[0];
-      if (currentPicker === 'start') {
-        setStartDate(formattedDate);
-      } else {
-        setEndDate(formattedDate);
-      }
-    }
-  };
-
-  const showPicker = (pickerType: 'start' | 'end') => {
-    setCurrentPicker(pickerType);
-    if (pickerType === 'start') {
-      setShowStartDatePicker(true);
-    } else {
-      setShowEndDatePicker(true);
-    }
-  };
-
-  const handleSubmit = async () => {
+  const handleSave = async () => {
     try {
-      await saveMedication(petId, {
-        name,
-        dosage,
-        frequency,
-        startDate,
-        endDate,
-        notes,
-      });
+      const storage = MedicationStorage.getInstance(petId);
+      await storage.save({
+        ...medication,
+        id: storage.createId(),
+      } as Medication);
       navigation.goBack();
     } catch (error) {
       console.error('Error saving medication:', error);
@@ -78,94 +53,72 @@ export const MedicationForm = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.form}>
-          <Text style={styles.label}>Название препарата</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Введите название препарата"
-          />
+      <View style={styles.header}>
+        <Text style={styles.title}>Добавить медикамент</Text>
+      </View>
 
-          <Text style={styles.label}>Дозировка</Text>
-          <TextInput
-            style={styles.input}
-            value={dosage}
-            onChangeText={setDosage}
-            placeholder="Введите дозировку"
-          />
-
-          <Text style={styles.label}>Частота приёма</Text>
-          <TextInput
-            style={styles.input}
-            value={frequency}
-            onChangeText={setFrequency}
-            placeholder="Например: 2 раза в день"
-          />
-
-          <Text style={styles.label}>Дата начала приёма</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => showPicker('start')}
-          >
-            <Text style={styles.dateButtonText}>{startDate}</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.label}>Дата окончания приёма</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => showPicker('end')}
-          >
-            <Text style={styles.dateButtonText}>
-              {endDate || 'Не указано'}
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={styles.label}>Заметки</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Дополнительная информация"
-            multiline
-            numberOfLines={4}
-          />
-
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.buttonText}>Отмена</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.submitButton]}
-              onPress={handleSubmit}
-            >
-              <LinearGradient
-                colors={['#4facfe', '#00f2fe']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.gradient}
-              >
-                <Text style={[styles.buttonText, styles.submitButtonText]}>
-                  Добавить
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
+      <ScrollView style={styles.content}>
+        <Card variant="elevated" style={styles.formCard}>
+          <View style={styles.field}>
+            <Text style={styles.label}>Название</Text>
+            <TextInput
+              style={styles.input}
+              value={medication.name}
+              onChangeText={(text) => setMedication(prev => ({ ...prev, name: text }))}
+              placeholder="Введите название медикамента"
+            />
           </View>
-        </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Дозировка</Text>
+            <TextInput
+              style={styles.input}
+              value={medication.dosage}
+              onChangeText={(text) => setMedication(prev => ({ ...prev, dosage: text }))}
+              placeholder="Например: 1 таблетка"
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Частота приема</Text>
+            <TextInput
+              style={styles.input}
+              value={medication.frequency}
+              onChangeText={(text) => setMedication(prev => ({ ...prev, frequency: text }))}
+              placeholder="Например: 2 раза в день"
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Примечания</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={medication.notes}
+              onChangeText={(text) => setMedication(prev => ({ ...prev, notes: text }))}
+              placeholder="Дополнительная информация"
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+        </Card>
       </ScrollView>
 
-      {(showStartDatePicker || showEndDatePicker) && (
-        <DateTimePicker
-          value={new Date(currentPicker === 'start' ? startDate : (endDate || startDate))}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
-        />
-      )}
+      <View style={styles.actions}>
+        <Button
+          variant="tertiary"
+          size="medium"
+          onPress={() => navigation.goBack()}
+        >
+          Отмена
+        </Button>
+        <Button
+          variant="primary"
+          size="medium"
+          onPress={handleSave}
+        >
+          Сохранить
+        </Button>
+      </View>
     </SafeAreaView>
   );
 };
@@ -173,73 +126,50 @@ export const MedicationForm = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
-  scrollView: {
+  header: {
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  title: {
+    ...typography.h2,
+    color: colors.text.primary,
+  },
+  content: {
     flex: 1,
+    padding: spacing.md,
   },
-  form: {
-    padding: 16,
+  formCard: {
+    padding: spacing.md,
+  },
+  field: {
+    marginBottom: spacing.md,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
+    ...typography.body2,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
   },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    ...typography.body1,
     borderWidth: 1,
-    borderColor: '#e1e1e1',
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: spacing.sm,
+    color: colors.text.primary,
   },
   textArea: {
-    height: 100,
+    minHeight: 100,
     textAlignVertical: 'top',
   },
-  dateButton: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e1e1e1',
-  },
-  dateButtonText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  buttonContainer: {
+  actions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
-  },
-  button: {
-    flex: 1,
-    marginHorizontal: 8,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  cancelButton: {
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#e1e1e1',
-    padding: 12,
-  },
-  submitButton: {
-    backgroundColor: '#4facfe',
-  },
-  gradient: {
-    padding: 12,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  submitButtonText: {
-    color: '#fff',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
 }); 

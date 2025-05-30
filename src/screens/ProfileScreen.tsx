@@ -239,8 +239,8 @@ export const ProfileScreen = () => {
 
       <Modal 
         visible={isEditMode} 
-        animationType="slide" 
-        presentationStyle="fullScreen"
+        animationType="slide"
+        presentationStyle="formSheet"
       >
         <PetForm
           initialData={pet}
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   photoContainer: {
     position: 'relative',
-    marginBottom: spacing.md,
+    marginBottom: spacing.xl,
     alignItems: 'center',
   },
   photo: {
@@ -291,9 +291,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
+    zIndex: 2,
   },
   nameContainer: {
     alignItems: 'center',
+    marginTop: spacing.md,
   },
   name: {
     ...typography.h1,
@@ -313,10 +315,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.large,
-    marginTop: spacing.md,
+    marginTop: spacing.xl,
     gap: spacing.xs,
     borderWidth: 1,
     borderColor: colors.border,
+    zIndex: 1,
   },
   editProfileText: {
     ...typography.body2,
