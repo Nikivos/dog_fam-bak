@@ -5,12 +5,19 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  TouchableOpacity,
   Modal,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { Pet } from '../types/pet';
 import { PetForm } from '../components/PetForm';
+import { Card } from '../components/Card';
+import { Button } from '../components/Button';
+import { colors, typography, spacing, borderRadius } from '../theme/theme';
+import { PetStorage } from '../data/petStorage';
 
 // Временные данные для демонстрации
 const mockPet: Pet = {
@@ -56,8 +63,80 @@ export const ProfileScreen = () => {
     setIsEditMode(true);
   };
 
-  const handleFormSubmit = (updatedPet: Partial<Pet>) => {
-    setPet(prev => ({ ...prev, ...updatedPet }));
+  const handlePhotoPress = async () => {
+    const options: Array<{
+      text: string;
+      style?: 'default' | 'cancel' | 'destructive';
+      onPress?: () => Promise<void>;
+    }> = [
+      {
+        text: 'Отмена',
+        style: 'cancel',
+      },
+      {
+        text: 'Сделать фото',
+        onPress: async () => {
+          try {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Ошибка', 'Нужно разрешение на использование камеры');
+              return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.5,
+            });
+
+            if (!result.canceled && result.assets[0].uri) {
+              const updatedPet = { ...pet, photo: result.assets[0].uri };
+              setPet(updatedPet);
+              const storage = PetStorage.getInstance();
+              await storage.save(updatedPet);
+            }
+          } catch (error) {
+            console.error('Error taking photo:', error);
+            Alert.alert('Ошибка', 'Не удалось сделать фото');
+          }
+        },
+      },
+      {
+        text: 'Выбрать из галереи',
+        onPress: async () => {
+          try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Ошибка', 'Нужно разрешение на доступ к галерее');
+              return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.5,
+            });
+
+            if (!result.canceled && result.assets[0].uri) {
+              const updatedPet = { ...pet, photo: result.assets[0].uri };
+              setPet(updatedPet);
+              const storage = PetStorage.getInstance();
+              await storage.save(updatedPet);
+            }
+          } catch (error) {
+            console.error('Error picking image:', error);
+            Alert.alert('Ошибка', 'Не удалось выбрать фото');
+          }
+        },
+      },
+    ];
+
+    Alert.alert('Изменить фото', 'Выберите способ', options);
+  };
+
+  const handleFormSubmit = (updatedPet: Pet) => {
+    setPet(updatedPet);
     setIsEditMode(false);
   };
 
@@ -66,190 +145,252 @@ export const ProfileScreen = () => {
   };
 
   return (
-    <>
+    <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <View style={styles.container}>
-          <View style={styles.header}>
+        <View style={styles.header}>
+          <View style={styles.photoContainer}>
             <Image source={{ uri: pet.photo }} style={styles.photo} />
-            <TouchableOpacity style={styles.editButton} onPress={handleEditPress}>
-              <Ionicons name="create-outline" size={24} color="#007AFF" />
+            <TouchableOpacity
+              style={styles.editPhotoButton}
+              onPress={handlePhotoPress}
+            >
+              <Ionicons name="camera" size={24} color={colors.text.light} />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.name}>{pet.name}</Text>
-          <Text style={styles.breed}>{pet.breed}</Text>
+          <View style={styles.nameContainer}>
+            <Text style={styles.name}>{pet.name}</Text>
+            <Text style={styles.breed}>{pet.breed}</Text>
+            <TouchableOpacity
+              style={styles.editProfileButton}
+              onPress={handleEditPress}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.primary} />
+              <Text style={styles.editProfileText}>Редактировать профиль</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
+        <Card variant="subtle" style={styles.infoCard}>
           <View style={styles.infoContainer}>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Возраст</Text>
+              <Ionicons name="calendar" size={24} color={colors.primary} />
               <Text style={styles.infoValue}>{calculateAge(pet.birthDate)} лет</Text>
+              <Text style={styles.infoLabel}>Возраст</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Вес</Text>
+              <Ionicons name="scale" size={24} color={colors.primary} />
               <Text style={styles.infoValue}>{pet.weight} кг</Text>
+              <Text style={styles.infoLabel}>Вес</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Пол</Text>
+              <Ionicons name={pet.gender === 'male' ? 'male' : 'female'} size={24} color={colors.primary} />
               <Text style={styles.infoValue}>
                 {pet.gender === 'male' ? 'Мальчик' : 'Девочка'}
               </Text>
+              <Text style={styles.infoLabel}>Пол</Text>
             </View>
           </View>
+        </Card>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Прививки</Text>
-            {pet.vaccinations.map((vaccination) => (
-              <View key={vaccination.id} style={styles.vaccinationItem}>
-                <Text style={styles.vaccinationName}>{vaccination.name}</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Прививки</Text>
+          {pet.vaccinations.map((vaccination) => (
+            <Card key={vaccination.id} style={styles.itemCard}>
+              <View style={styles.vaccinationItem}>
+                <View style={styles.itemHeader}>
+                  <Ionicons name="medical" size={20} color={colors.primary} />
+                  <Text style={styles.vaccinationName}>{vaccination.name}</Text>
+                </View>
                 <Text style={styles.vaccinationDate}>
                   Следующая: {vaccination.nextDate}
                 </Text>
               </View>
-            ))}
-          </View>
+            </Card>
+          ))}
+        </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Медицинская карта</Text>
-            {pet.medicalRecords.map((record) => (
-              <View key={record.id} style={styles.recordItem}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Медицинская карта</Text>
+          {pet.medicalRecords.map((record) => (
+            <Card key={record.id} style={styles.itemCard}>
+              <View style={styles.recordItem}>
                 <Text style={styles.recordDate}>{record.date}</Text>
                 <Text style={styles.recordDescription}>{record.description}</Text>
                 <Text style={styles.recordDoctor}>{record.doctor}</Text>
               </View>
-            ))}
-          </View>
+            </Card>
+          ))}
+        </View>
 
-          {pet.allergies.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Аллергии</Text>
+        {pet.allergies.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Аллергии</Text>
+            <Card style={styles.itemCard}>
               {pet.allergies.map((allergy, index) => (
                 <Text key={index} style={styles.allergyItem}>
                   • {allergy}
                 </Text>
               ))}
-            </View>
-          )}
-        </View>
+            </Card>
+          </View>
+        )}
       </ScrollView>
 
-      <Modal visible={isEditMode} animationType="slide">
+      <Modal 
+        visible={isEditMode} 
+        animationType="slide" 
+        presentationStyle="fullScreen"
+      >
         <PetForm
           initialData={pet}
           onSubmit={handleFormSubmit}
           onCancel={handleFormCancel}
         />
       </Modal>
-    </>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
   container: {
     flex: 1,
-    padding: 20,
+    backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   header: {
+    padding: spacing.md,
     alignItems: 'center',
+  },
+  photoContainer: {
     position: 'relative',
+    marginBottom: spacing.md,
+    alignItems: 'center',
   },
   photo: {
     width: 150,
     height: 150,
-    borderRadius: 75,
-    marginBottom: 20,
+    borderRadius: borderRadius.circle,
+    borderWidth: 4,
+    borderColor: colors.primary,
   },
-  editButton: {
+  editPhotoButton: {
     position: 'absolute',
-    right: 20,
-    top: 10,
-    padding: 10,
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.text.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  nameContainer: {
+    alignItems: 'center',
   },
   name: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    ...typography.h1,
+    color: colors.text.primary,
     textAlign: 'center',
-    color: '#333',
   },
   breed: {
-    fontSize: 18,
-    color: '#666',
+    ...typography.body1,
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 20,
+    marginTop: spacing.xs,
+  },
+  editProfileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.large,
+    marginTop: spacing.md,
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  editProfileText: {
+    ...typography.body2,
+    color: colors.primary,
+  },
+  infoCard: {
+    margin: spacing.md,
   },
   infoContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 30,
-    backgroundColor: '#f8f8f8',
-    padding: 15,
-    borderRadius: 10,
+    padding: spacing.md,
   },
   infoItem: {
     alignItems: 'center',
   },
   infoLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
   infoValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    ...typography.h3,
+    color: colors.text.primary,
+    marginTop: spacing.xs,
   },
   section: {
-    marginBottom: 30,
+    padding: spacing.md,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    ...typography.h2,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+  },
+  itemCard: {
+    marginBottom: spacing.sm,
   },
   vaccinationItem: {
-    backgroundColor: '#f8f8f8',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
+    padding: spacing.md,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   vaccinationName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    ...typography.body1,
+    color: colors.text.primary,
+    fontWeight: '600',
   },
   vaccinationDate: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
   recordItem: {
-    backgroundColor: '#f8f8f8',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
+    padding: spacing.md,
   },
   recordDate: {
-    fontSize: 14,
-    color: '#666',
+    ...typography.caption,
+    color: colors.text.secondary,
   },
   recordDescription: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginVertical: 5,
+    ...typography.body1,
+    color: colors.text.primary,
+    marginVertical: spacing.xs,
   },
   recordDoctor: {
-    fontSize: 14,
-    color: '#666',
+    ...typography.caption,
+    color: colors.text.secondary,
   },
   allergyItem: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 5,
-    paddingLeft: 10,
+    ...typography.body1,
+    color: colors.text.primary,
+    padding: spacing.sm,
   },
 }); 

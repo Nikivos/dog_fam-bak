@@ -15,27 +15,27 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { Pet } from '../types/pet';
 import { PetStorage } from '../data/petStorage';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { ProfileStackParamList } from '../navigation/ProfileStack';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, typography, spacing, borderRadius } from '../theme/theme';
+import { Button } from './Button';
 
-type Props = NativeStackScreenProps<ProfileStackParamList, 'PetForm'>;
+interface PetFormProps {
+  initialData?: Pet;
+  onSubmit: (pet: Pet) => void;
+  onCancel: () => void;
+}
 
-export const PetForm = () => {
-  const navigation = useNavigation<Props['navigation']>();
-  const route = useRoute<Props['route']>();
-  const initialPet = route.params?.pet;
-
+export const PetForm: React.FC<PetFormProps> = ({ initialData, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
-    name: initialPet?.name || '',
-    breed: initialPet?.breed || '',
-    birthDate: initialPet?.birthDate || new Date().toISOString().split('T')[0],
-    weight: initialPet?.weight?.toString() || '',
-    gender: initialPet?.gender || 'male',
-    chipNumber: initialPet?.chipNumber || '',
-    allergies: initialPet?.allergies?.join(', ') || '',
-    specialNeeds: initialPet?.specialNeeds || '',
-    photo: initialPet?.photo || '',
+    name: initialData?.name || '',
+    breed: initialData?.breed || '',
+    birthDate: initialData?.birthDate || new Date().toISOString().split('T')[0],
+    weight: initialData?.weight?.toString() || '',
+    gender: initialData?.gender || 'male',
+    chipNumber: initialData?.chipNumber || '',
+    allergies: initialData?.allergies?.join(', ') || '',
+    specialNeeds: initialData?.specialNeeds || '',
+    photo: initialData?.photo || '',
   });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -62,26 +62,25 @@ export const PetForm = () => {
     }
 
     const petData: Pet = {
-      id: initialPet?.id || '',
+      id: initialData?.id || '',
       name: formData.name.trim(),
       breed: formData.breed.trim(),
       birthDate: formData.birthDate,
       weight: weight,
       gender: formData.gender as 'male' | 'female',
       chipNumber: formData.chipNumber.trim() || undefined,
-      allergies: formData.allergies.split(',').map(a => a.trim()).filter(Boolean),
+      allergies: formData.allergies ? formData.allergies.split(',').map((item: string) => item.trim()).filter(Boolean) : [],
       specialNeeds: formData.specialNeeds.trim() || undefined,
       photo: formData.photo,
-      vaccinations: initialPet?.vaccinations || [],
-      medicalRecords: initialPet?.medicalRecords || [],
+      vaccinations: initialData?.vaccinations || [],
+      medicalRecords: initialData?.medicalRecords || [],
     };
 
-    console.log('Saving pet data:', petData);
-
     try {
-      await PetStorage.savePet(petData);
+      const storage = PetStorage.getInstance();
+      await storage.save(petData);
       console.log('Pet saved successfully');
-      navigation.goBack();
+      onSubmit(petData);
     } catch (error) {
       console.error('Error saving pet:', error);
       Alert.alert('Ошибка', 'Не удалось сохранить данные питомца');
@@ -167,141 +166,175 @@ export const PetForm = () => {
     );
   };
 
+  const handleClose = () => {
+    Alert.alert(
+      'Закрыть форму',
+      'Вы уверены? Все несохраненные изменения будут потеряны.',
+      [
+        {
+          text: 'Отмена',
+          style: 'cancel',
+        },
+        {
+          text: 'Закрыть',
+          style: 'destructive',
+          onPress: onCancel,
+        },
+      ]
+    );
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            {initialPet ? 'Редактировать питомца' : 'Добавить питомца'}
-          </Text>
-          <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={styles.photoContainer} onPress={showImagePicker}>
-          {formData.photo ? (
-            <Image source={{ uri: formData.photo }} style={styles.photo} />
-          ) : (
-            <View style={styles.photoPlaceholder}>
-              <Text style={styles.photoPlaceholderText}>Добавить фото</Text>
-            </View>
-          )}
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <View style={styles.header}>
+        <Text style={styles.title}>
+          {initialData ? 'Редактировать питомца' : 'Добавить питомца'}
+        </Text>
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={handleClose}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="close" size={28} color={colors.text.secondary} />
         </TouchableOpacity>
+      </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Имя*</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.name}
-            onChangeText={(value) => handleChange('name', value)}
-            placeholder="Введите имя питомца"
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Порода*</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.breed}
-            onChangeText={(value) => handleChange('breed', value)}
-            placeholder="Введите породу"
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Дата рождения*</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text>{formData.birthDate}</Text>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          <TouchableOpacity style={styles.photoContainer} onPress={showImagePicker}>
+            {formData.photo ? (
+              <Image source={{ uri: formData.photo }} style={styles.photo} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Ionicons name="camera" size={32} color={colors.text.secondary} />
+                <Text style={styles.photoPlaceholderText}>Добавить фото</Text>
+              </View>
+            )}
           </TouchableOpacity>
-          {showDatePicker && (
-            <DateTimePicker
-              value={new Date(formData.birthDate)}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={handleDateChange}
+
+          <Button
+            variant="secondary"
+            onPress={showImagePicker}
+            icon={<Ionicons name="camera" size={20} color={colors.primary} />}
+            style={styles.photoButton}
+          >
+            {formData.photo ? 'Изменить фото' : 'Добавить фото'}
+          </Button>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Имя*</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.name}
+              onChangeText={(value) => handleChange('name', value)}
+              placeholder="Введите имя питомца"
             />
-          )}
-        </View>
+          </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Вес (кг)*</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.weight}
-            onChangeText={(value) => handleChange('weight', value)}
-            keyboardType="decimal-pad"
-            placeholder="Введите вес"
-          />
-        </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Порода*</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.breed}
+              onChangeText={(value) => handleChange('breed', value)}
+              placeholder="Введите породу"
+            />
+          </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Пол</Text>
-          <View style={styles.genderContainer}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Дата рождения*</Text>
             <TouchableOpacity
-              style={[
-                styles.genderButton,
-                formData.gender === 'male' && styles.genderButtonActive,
-              ]}
-              onPress={() => handleChange('gender', 'male')}
+              style={styles.dateButton}
+              onPress={() => setShowDatePicker(true)}
             >
-              <Text style={formData.gender === 'male' ? styles.genderTextActive : styles.genderText}>
-                Мальчик
-              </Text>
+              <Text style={styles.dateButtonText}>{formData.birthDate}</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.genderButton,
-                formData.gender === 'female' && styles.genderButtonActive,
-              ]}
-              onPress={() => handleChange('gender', 'female')}
-            >
-              <Text style={formData.gender === 'female' ? styles.genderTextActive : styles.genderText}>
-                Девочка
-              </Text>
+            {showDatePicker && (
+              <DateTimePicker
+                value={new Date(formData.birthDate)}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+              />
+            )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Вес (кг)*</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.weight}
+              onChangeText={(value) => handleChange('weight', value)}
+              keyboardType="decimal-pad"
+              placeholder="Введите вес"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Пол</Text>
+            <View style={styles.genderContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.genderButton,
+                  formData.gender === 'male' && styles.genderButtonActive,
+                ]}
+                onPress={() => handleChange('gender', 'male')}
+              >
+                <Text style={formData.gender === 'male' ? styles.genderTextActive : styles.genderText}>
+                  Мальчик
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.genderButton,
+                  formData.gender === 'female' && styles.genderButtonActive,
+                ]}
+                onPress={() => handleChange('gender', 'female')}
+              >
+                <Text style={formData.gender === 'female' ? styles.genderTextActive : styles.genderText}>
+                  Девочка
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Номер чипа (если есть)</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.chipNumber}
+              onChangeText={(value) => handleChange('chipNumber', value)}
+              placeholder="Введите номер чипа"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Аллергии (через запятую)</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.allergies}
+              onChangeText={(value) => handleChange('allergies', value)}
+              placeholder="Например: курица, говядина"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Особые потребности</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={formData.specialNeeds}
+              onChangeText={(value) => handleChange('specialNeeds', value)}
+              placeholder="Опишите особые потребности питомца"
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+              <Text style={styles.buttonText}>Сохранить</Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Номер чипа (если есть)</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.chipNumber}
-            onChangeText={(value) => handleChange('chipNumber', value)}
-            placeholder="Введите номер чипа"
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Аллергии (через запятую)</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.allergies}
-            onChangeText={(value) => handleChange('allergies', value)}
-            placeholder="Например: курица, говядина"
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Особые потребности</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={formData.specialNeeds}
-            onChangeText={(value) => handleChange('specialNeeds', value)}
-            placeholder="Опишите особые потребности питомца"
-            multiline
-            numberOfLines={4}
-          />
-        </View>
-
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.buttonText}>Сохранить</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -311,116 +344,143 @@ export const PetForm = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    padding: 20,
+  },
+  content: {
+    padding: spacing.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   closeButton: {
-    padding: 10,
-  },
-  closeButtonText: {
-    fontSize: 20,
-    color: '#666',
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    ...typography.h1,
+    color: colors.text.primary,
+    flex: 1,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: spacing.md,
   },
   label: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: '#333',
+    ...typography.body2,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
   },
   input: {
+    ...typography.body1,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderColor: colors.border,
+    borderRadius: borderRadius.medium,
+    padding: spacing.md,
+    paddingHorizontal: spacing.lg,
+    color: colors.text.primary,
+    backgroundColor: colors.background,
   },
   textArea: {
-    height: 100,
+    minHeight: 120,
     textAlignVertical: 'top',
+    paddingTop: spacing.md,
   },
   dateButton: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: colors.border,
+    borderRadius: borderRadius.medium,
+    padding: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.background,
+  },
+  dateButtonText: {
+    ...typography.body1,
+    color: colors.text.primary,
   },
   genderContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: spacing.md,
   },
   genderButton: {
     flex: 1,
-    padding: 12,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginHorizontal: 5,
+    borderColor: colors.border,
+    borderRadius: borderRadius.medium,
     alignItems: 'center',
+    backgroundColor: colors.background,
   },
   genderButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   genderText: {
-    color: '#333',
+    ...typography.body1,
+    color: colors.text.primary,
   },
   genderTextActive: {
-    color: '#fff',
+    ...typography.body1,
+    color: colors.text.light,
   },
   buttonContainer: {
-    marginTop: 20,
-    marginBottom: 30,
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.md,
   },
   submitButton: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: borderRadius.medium,
     alignItems: 'center',
+    shadowColor: colors.text.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...typography.body1,
+    fontWeight: '600',
+    color: colors.text.light,
   },
   photoContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.md,
   },
   photo: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: colors.background,
   },
   photoPlaceholder: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: '#e1e1e1',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#ccc',
+    borderWidth: 2,
+    borderColor: colors.border,
     borderStyle: 'dashed',
   },
+  photoButton: {
+    marginBottom: spacing.xl,
+  },
   photoPlaceholderText: {
-    color: '#666',
-    fontSize: 16,
+    ...typography.body2,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
 }); 
