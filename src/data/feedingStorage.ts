@@ -1,7 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BaseStorage, BaseEntity } from './baseStorage';
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner';
+
+export interface BaseEntity {
+  id: string;
+}
 
 export interface Meal extends BaseEntity {
   type: MealType;
@@ -9,15 +12,6 @@ export interface Meal extends BaseEntity {
   amount: number;
   calories: number;
   completed: boolean;
-  petId: string;
-  date: string;
-}
-
-export interface FoodType {
-  id: string;
-  name: string;
-  caloriesPerGram: number;
-  description?: string;
 }
 
 export interface FeedingSettings extends BaseEntity {
@@ -25,7 +19,12 @@ export interface FeedingSettings extends BaseEntity {
   healthCondition: 'healthy' | 'overweight' | 'underweight';
   lifeStage: 'puppy' | 'adult' | 'senior';
   petId: string;
-  preferredFood?: FoodType[];
+}
+
+export interface FoodType extends BaseEntity {
+  name: string;
+  calories: number;
+  description?: string;
 }
 
 const STORAGE_KEYS = {
@@ -36,63 +35,170 @@ const STORAGE_KEYS = {
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-// Управление приемами пищи
-export const saveMeal = async (petId: string, meal: Omit<Meal, 'id'>) => {
-  try {
-    const meals = await getMeals(petId);
-    const newMeal = { ...meal, id: generateId() };
-    meals.push(newMeal);
-    await AsyncStorage.setItem(
-      `${STORAGE_KEYS.MEALS}${petId}`,
-      JSON.stringify(meals)
-    );
-    return newMeal;
-  } catch (error) {
-    console.error('Error saving meal:', error);
-    throw error;
-  }
-};
+export class MealStorage {
+  private static instance: MealStorage;
+  private meals: Meal[] = [];
 
-export const getMeals = async (petId: string): Promise<Meal[]> => {
-  try {
-    const data = await AsyncStorage.getItem(`${STORAGE_KEYS.MEALS}${petId}`);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
-    console.error('Error getting meals:', error);
-    throw error;
-  }
-};
+  private constructor() {}
 
-export const updateMeal = async (petId: string, meal: Meal) => {
-  try {
-    const meals = await getMeals(petId);
-    const index = meals.findIndex(m => m.id === meal.id);
-    if (index !== -1) {
-      meals[index] = meal;
-      await AsyncStorage.setItem(
-        `${STORAGE_KEYS.MEALS}${petId}`,
-        JSON.stringify(meals)
-      );
+  static getInstance(): MealStorage {
+    if (!MealStorage.instance) {
+      MealStorage.instance = new MealStorage();
     }
-  } catch (error) {
-    console.error('Error updating meal:', error);
-    throw error;
+    return MealStorage.instance;
   }
-};
 
-export const deleteMeal = async (petId: string, mealId: string) => {
-  try {
-    const meals = await getMeals(petId);
-    const filteredMeals = meals.filter(meal => meal.id !== mealId);
-    await AsyncStorage.setItem(
-      `${STORAGE_KEYS.MEALS}${petId}`,
-      JSON.stringify(filteredMeals)
-    );
-  } catch (error) {
-    console.error('Error deleting meal:', error);
-    throw error;
+  async load(): Promise<void> {
+    try {
+      const data = await AsyncStorage.getItem('meals');
+      if (data) {
+        this.meals = JSON.parse(data);
+      }
+    } catch (error) {
+      console.error('Error loading meals:', error);
+    }
   }
-};
+
+  async save(): Promise<void> {
+    try {
+      await AsyncStorage.setItem('meals', JSON.stringify(this.meals));
+    } catch (error) {
+      console.error('Error saving meals:', error);
+    }
+  }
+
+  getMealsForDate(date: Date): Meal[] {
+    const dateString = date.toISOString().split('T')[0];
+    return this.meals.filter(meal => meal.time.startsWith(dateString));
+  }
+
+  async saveMeal(meal: Meal): Promise<void> {
+    const index = this.meals.findIndex(m => m.id === meal.id);
+    if (index >= 0) {
+      this.meals[index] = meal;
+    } else {
+      this.meals.push(meal);
+    }
+    await this.save();
+  }
+
+  async updateMeal(meal: Meal): Promise<void> {
+    const index = this.meals.findIndex(m => m.id === meal.id);
+    if (index >= 0) {
+      this.meals[index] = meal;
+      await this.save();
+    }
+  }
+
+  async deleteMeal(id: string): Promise<void> {
+    this.meals = this.meals.filter(meal => meal.id !== id);
+    await this.save();
+  }
+}
+
+export class FeedingSettingsStorage {
+  private static instance: FeedingSettingsStorage;
+  private settings: FeedingSettings | null = null;
+
+  private constructor() {}
+
+  static getInstance(): FeedingSettingsStorage {
+    if (!FeedingSettingsStorage.instance) {
+      FeedingSettingsStorage.instance = new FeedingSettingsStorage();
+    }
+    return FeedingSettingsStorage.instance;
+  }
+
+  async load(): Promise<void> {
+    try {
+      const data = await AsyncStorage.getItem('feedingSettings');
+      if (data) {
+        this.settings = JSON.parse(data);
+      } else {
+        this.settings = {
+          id: 'default',
+          petId: 'default',
+          activityLevel: 'medium',
+          healthCondition: 'healthy',
+          lifeStage: 'adult',
+        };
+      }
+    } catch (error) {
+      console.error('Error loading feeding settings:', error);
+    }
+  }
+
+  getSettings(): FeedingSettings {
+    if (!this.settings) {
+      throw new Error('Settings not loaded');
+    }
+    return this.settings;
+  }
+
+  async saveSettings(settings: FeedingSettings): Promise<void> {
+    try {
+      this.settings = settings;
+      await AsyncStorage.setItem('feedingSettings', JSON.stringify(settings));
+    } catch (error) {
+      console.error('Error saving feeding settings:', error);
+    }
+  }
+}
+
+export class FoodTypeStorage {
+  private static instance: FoodTypeStorage;
+  private foodTypes: FoodType[] = [];
+
+  private constructor() {}
+
+  static getInstance(): FoodTypeStorage {
+    if (!FoodTypeStorage.instance) {
+      FoodTypeStorage.instance = new FoodTypeStorage();
+    }
+    return FoodTypeStorage.instance;
+  }
+
+  async load(): Promise<void> {
+    try {
+      const data = await AsyncStorage.getItem('foodTypes');
+      if (data) {
+        this.foodTypes = JSON.parse(data);
+      }
+    } catch (error) {
+      console.error('Error loading food types:', error);
+    }
+  }
+
+  async save(): Promise<void> {
+    try {
+      await AsyncStorage.setItem('foodTypes', JSON.stringify(this.foodTypes));
+    } catch (error) {
+      console.error('Error saving food types:', error);
+    }
+  }
+
+  getFoodTypes(): FoodType[] {
+    return this.foodTypes;
+  }
+
+  async addFoodType(foodType: FoodType): Promise<void> {
+    this.foodTypes.push(foodType);
+    await this.save();
+  }
+
+  async updateFoodType(foodType: FoodType): Promise<void> {
+    const index = this.foodTypes.findIndex(ft => ft.id === foodType.id);
+    if (index >= 0) {
+      this.foodTypes[index] = foodType;
+      await this.save();
+    }
+  }
+
+  async deleteFoodType(id: string): Promise<void> {
+    this.foodTypes = this.foodTypes.filter(ft => ft.id !== id);
+    await this.save();
+  }
+}
 
 // Управление типами корма
 export const saveFoodType = async (foodType: Omit<FoodType, 'id'>) => {
@@ -144,137 +250,4 @@ export const deleteFoodType = async (foodTypeId: string) => {
     console.error('Error deleting food type:', error);
     throw error;
   }
-};
-
-// Управление настройками кормления
-export const saveFeedingSettings = async (
-  petId: string,
-  settings: FeedingSettings
-) => {
-  try {
-    await AsyncStorage.setItem(
-      `${STORAGE_KEYS.FEEDING_SETTINGS}${petId}`,
-      JSON.stringify(settings)
-    );
-  } catch (error) {
-    console.error('Error saving feeding settings:', error);
-    throw error;
-  }
-};
-
-export const getFeedingSettings = async (
-  petId: string
-): Promise<FeedingSettings> => {
-  try {
-    const data = await AsyncStorage.getItem(
-      `${STORAGE_KEYS.FEEDING_SETTINGS}${petId}`
-    );
-    return data
-      ? JSON.parse(data)
-      : {
-          activityLevel: 'medium',
-          healthCondition: 'healthy',
-          lifeStage: 'adult',
-          petId,
-          preferredFood: [],
-        };
-  } catch (error) {
-    console.error('Error getting feeding settings:', error);
-    throw error;
-  }
-};
-
-export class MealStorage extends BaseStorage<Meal> {
-  private static instances: Map<string, MealStorage> = new Map();
-
-  private constructor(petId: string, date: string) {
-    super(`${STORAGE_KEYS.MEALS}${petId}_${date}`, 'Meal');
-  }
-
-  static getInstance(petId: string, date: string): MealStorage {
-    const key = `${petId}_${date}`;
-    if (!this.instances.has(key)) {
-      this.instances.set(key, new MealStorage(petId, date));
-    }
-    return this.instances.get(key)!;
-  }
-
-  async getMealsForDate(date: string): Promise<Meal[]> {
-    const meals = await this.getAll();
-    return meals.filter(meal => meal.date === date);
-  }
-
-  async updateMealCompletion(mealId: string, completed: boolean): Promise<Meal> {
-    const meals = await this.getAll();
-    const meal = meals.find(m => m.id === mealId);
-    if (!meal) {
-      throw new Error('Meal not found');
-    }
-    return this.save({ ...meal, completed });
-  }
-}
-
-export class FeedingSettingsStorage extends BaseStorage<FeedingSettings> {
-  private static instances: Map<string, FeedingSettingsStorage> = new Map();
-  private static foodTypesInstance: FoodTypeStorage | null = null;
-
-  private constructor(petId: string) {
-    super(`${STORAGE_KEYS.FEEDING_SETTINGS}${petId}`, 'FeedingSettings');
-  }
-
-  static getInstance(petId: string): FeedingSettingsStorage {
-    if (!this.instances.has(petId)) {
-      this.instances.set(petId, new FeedingSettingsStorage(petId));
-    }
-    return this.instances.get(petId)!;
-  }
-
-  async getOrCreateSettings(petId: string): Promise<FeedingSettings> {
-    const settings = await this.getAll();
-    if (settings.length > 0) {
-      return settings[0];
-    }
-
-    const defaultSettings: FeedingSettings = {
-      id: this.generateId(),
-      activityLevel: 'medium',
-      healthCondition: 'healthy',
-      lifeStage: 'adult',
-      petId,
-      preferredFood: [],
-    };
-
-    return this.save(defaultSettings);
-  }
-
-  static getFoodTypeStorage(): FoodTypeStorage {
-    if (!this.foodTypesInstance) {
-      this.foodTypesInstance = new FoodTypeStorage();
-    }
-    return this.foodTypesInstance;
-  }
-}
-
-export class FoodTypeStorage extends BaseStorage<FoodType> {
-  constructor() {
-    super(STORAGE_KEYS.FOOD_TYPES, 'FoodType');
-  }
-
-  async getFoodTypes(): Promise<FoodType[]> {
-    return this.getAll();
-  }
-
-  async saveFoodType(foodType: Omit<FoodType, 'id'>): Promise<FoodType> {
-    const newFoodType: FoodType = {
-      ...foodType,
-      id: this.generateId(),
-    };
-    return this.save(newFoodType);
-  }
-
-  async deleteFoodType(id: string): Promise<void> {
-    const foodTypes = await this.getAll();
-    const updatedFoodTypes = foodTypes.filter(ft => ft.id !== id);
-    await this.saveAll(updatedFoodTypes);
-  }
-} 
+}; 

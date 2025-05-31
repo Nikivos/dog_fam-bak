@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
   Animated,
   Pressable,
   Dimensions,
+  ScrollView,
+  TextStyle,
+  ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,8 +20,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { Pet } from '../types/pet';
 import { PetForm } from '../components/PetForm';
 import { Card } from '../components/Card';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme/theme';
+import { Button } from '../components/Button';
+import { colors, typography, spacing, borderRadius, shadows, layout } from '../theme/theme';
 import { PetStorage } from '../data/petStorage';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Временные данные для демонстрации
 const mockPet: Pet = {
@@ -49,10 +54,43 @@ const mockPet: Pet = {
   allergies: ['Курица'],
 };
 
+interface PetInfo {
+  name: string;
+  breed: string;
+  age: number;
+  weight: number;
+  photo: string;
+}
+
+const mockPetInfo: PetInfo = {
+  name: 'Макс',
+  breed: 'Лабрадор',
+  age: 2,
+  weight: 25,
+  photo: 'https://via.placeholder.com/120',
+};
+
+const settingsItems = [
+  { icon: 'person-outline' as keyof typeof Ionicons.glyphMap, label: 'Личные данные' },
+  { icon: 'notifications-outline' as keyof typeof Ionicons.glyphMap, label: 'Уведомления' },
+  { icon: 'share-social-outline' as keyof typeof Ionicons.glyphMap, label: 'Поделиться доступом' }
+];
+
 export const ProfileScreen = () => {
   const [pet, setPet] = useState<Pet>(mockPet);
   const [isEditMode, setIsEditMode] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loadPet = async () => {
+      const storage = PetStorage.getInstance();
+      const pets = await storage.getAllPets();
+      if (pets.length > 0) {
+        setPet(pets[0]);
+      }
+    };
+    loadPet();
+  }, []);
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -124,7 +162,7 @@ export const ProfileScreen = () => {
             }
 
             const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              mediaTypes: 'images',
               allowsEditing: true,
               aspect: [1, 1],
               quality: 0.5,
@@ -168,123 +206,157 @@ export const ProfileScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Фиксированный хедер с фото */}
-      <View style={styles.header}>
-        <View style={styles.photoContainer}>
-          <Image source={{ uri: pet.photo }} style={styles.photo} />
-          <TouchableOpacity
-            style={styles.editPhotoButton}
-            onPress={handlePhotoPress}
-          >
-            <Ionicons name="camera" size={20} color={colors.text.light} />
-          </TouchableOpacity>
-        </View>
-        
-        <Text style={styles.name}>{pet.name}</Text>
-        <Text style={styles.breed}>{pet.breed}</Text>
-      </View>
-
-      {/* Основной контент */}
-      <Animated.ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
-        {/* Карточка статистики */}
-        <Card style={styles.statsCard}>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{calculateAge(pet.birthDate)}</Text>
-              <Text style={styles.statLabel}>лет</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <LinearGradient
+          colors={[colors.primary, `${colors.primary}80`]}
+          style={styles.headerGradient}
+        >
+          <View style={styles.header}>
+            <View style={styles.photoContainer}>
+              <Image source={{ uri: pet.photo }} style={styles.photo} />
+              <LinearGradient
+                colors={[colors.card, `${colors.card}90`]}
+                style={styles.editPhotoButton}
+              >
+                <Button
+                  variant="tertiary"
+                  size="small"
+                  onPress={handlePhotoPress}
+                  icon={<Ionicons name="camera" size={20} color={colors.primary} />}
+                />
+              </LinearGradient>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{pet.weight}</Text>
-              <Text style={styles.statLabel}>кг</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{pet.gender === 'male' ? '♂' : '♀'}</Text>
-              <Text style={styles.statLabel}>пол</Text>
-            </View>
+            <Text style={styles.name}>{pet.name}</Text>
+            <Text style={styles.breed}>{pet.breed}</Text>
           </View>
-        </Card>
+        </LinearGradient>
 
-        {/* Секция здоровья */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Здоровье</Text>
-          
-          {/* Прививки */}
-          <Pressable onLongPress={() => handleLongPress('Прививки')}>
-            <Card style={styles.healthCard}>
-              <View style={styles.healthCardHeader}>
-                <View style={[styles.iconContainer, { backgroundColor: `${colors.primary}15` }]}>
-                  <Ionicons name="medical" size={20} color={colors.primary} />
-                </View>
-                <Text style={styles.healthCardTitle}>Прививки</Text>
-              </View>
-              {pet.vaccinations.map((vaccination) => (
-                <View key={vaccination.id} style={styles.healthItem}>
-                  <Text style={styles.healthItemTitle}>{vaccination.name}</Text>
-                  <Text style={styles.healthItemDate}>Следующая: {vaccination.nextDate}</Text>
-                </View>
-              ))}
-            </Card>
-          </Pressable>
-
-          {/* Медкарта */}
-          <Pressable onLongPress={() => handleLongPress('Медкарта')}>
-            <Card style={styles.healthCard}>
-              <View style={styles.healthCardHeader}>
-                <View style={[styles.iconContainer, { backgroundColor: `${colors.accent}15` }]}>
-                  <Ionicons name="fitness" size={20} color={colors.accent} />
-                </View>
-                <Text style={styles.healthCardTitle}>Медкарта</Text>
-              </View>
-              {pet.medicalRecords.map((record) => (
-                <View key={record.id} style={styles.healthItem}>
-                  <Text style={styles.healthItemTitle}>{record.description}</Text>
-                  <Text style={styles.healthItemSubtitle}>{record.doctor}</Text>
-                  <Text style={styles.healthItemDate}>{record.date}</Text>
-                </View>
-              ))}
-            </Card>
-          </Pressable>
-
-          {/* Аллергии */}
-          {pet.allergies.length > 0 && (
-            <Pressable onLongPress={() => handleLongPress('Аллергии')}>
-              <Card style={styles.healthCard}>
-                <View style={styles.healthCardHeader}>
-                  <View style={[styles.iconContainer, { backgroundColor: `${colors.error}15` }]}>
-                    <Ionicons name="warning" size={20} color={colors.error} />
+        <View style={styles.content}>
+          <View style={styles.statsContainer}>
+            <Card variant="elevated" style={styles.statsCard}>
+              <LinearGradient
+                colors={[`${colors.primary}05`, `${colors.primary}10`]}
+                style={styles.statsGradient}
+              >
+                <View style={styles.statsContent}>
+                  <View style={[styles.statsIcon, { backgroundColor: `${colors.primary}15` }]}>
+                    <Ionicons name="calendar" size={24} color={colors.primary} />
                   </View>
-                  <Text style={styles.healthCardTitle}>Аллергии</Text>
+                  <Text style={styles.statsValue}>{calculateAge(pet.birthDate)} года</Text>
+                  <Text style={styles.statsLabel}>Возраст</Text>
                 </View>
-                <View style={styles.allergyList}>
-                  {pet.allergies.map((allergy, index) => (
-                    <View key={index} style={styles.allergyItem}>
-                      <View style={styles.allergyDot} />
-                      <Text style={styles.allergyText}>{allergy}</Text>
-                    </View>
-                  ))}
+              </LinearGradient>
+            </Card>
+            <Card variant="elevated" style={styles.statsCard}>
+              <LinearGradient
+                colors={[`${colors.secondary}05`, `${colors.secondary}10`]}
+                style={styles.statsGradient}
+              >
+                <View style={styles.statsContent}>
+                  <View style={[styles.statsIcon, { backgroundColor: `${colors.secondary}15` }]}>
+                    <Ionicons name="scale" size={24} color={colors.secondary} />
+                  </View>
+                  <Text style={styles.statsValue}>{pet.weight} кг</Text>
+                  <Text style={styles.statsLabel}>Вес</Text>
                 </View>
-              </Card>
-            </Pressable>
-          )}
-        </View>
-      </Animated.ScrollView>
+              </LinearGradient>
+            </Card>
+          </View>
 
-      {/* Плавающая кнопка редактирования */}
-      <TouchableOpacity
-        style={styles.editButton}
-        onPress={handleEditPress}
-      >
-        <Ionicons name="create-outline" size={24} color={colors.text.light} />
-      </TouchableOpacity>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <LinearGradient
+                  colors={[`${colors.primary}15`, `${colors.primary}05`]}
+                  style={styles.sectionIcon}
+                >
+                  <Ionicons name="document-text" size={20} color={colors.primary} />
+                </LinearGradient>
+                <Text style={styles.sectionTitle}>Документы</Text>
+              </View>
+            </View>
+
+            <Card variant="elevated" style={styles.documentCard}>
+              <LinearGradient
+                colors={[colors.card, `${colors.primary}05`]}
+                style={styles.documentGradient}
+              >
+                <View style={styles.documentContent}>
+                  <View style={[styles.documentIcon, { backgroundColor: `${colors.primary}15` }]}>
+                    <Ionicons name="medical" size={24} color={colors.primary} />
+                  </View>
+                  <View style={styles.documentInfo}>
+                    <Text style={styles.documentTitle}>Паспорт питомца</Text>
+                    <Text style={styles.documentDescription}>
+                      Основной документ с информацией о прививках и лечении
+                    </Text>
+                  </View>
+                  <Button
+                    variant="tertiary"
+                    size="small"
+                    icon={<Ionicons name="chevron-forward" size={20} color={colors.primary} />}
+                  />
+                </View>
+              </LinearGradient>
+            </Card>
+
+            <Card variant="elevated" style={styles.documentCard}>
+              <LinearGradient
+                colors={[colors.card, `${colors.secondary}05`]}
+                style={styles.documentGradient}
+              >
+                <View style={styles.documentContent}>
+                  <View style={[styles.documentIcon, { backgroundColor: `${colors.secondary}15` }]}>
+                    <Ionicons name="ribbon" size={24} color={colors.secondary} />
+                  </View>
+                  <View style={styles.documentInfo}>
+                    <Text style={styles.documentTitle}>Родословная</Text>
+                    <Text style={styles.documentDescription}>
+                      Документ о происхождении и регистрации
+                    </Text>
+                  </View>
+                  <Button
+                    variant="tertiary"
+                    size="small"
+                    icon={<Ionicons name="chevron-forward" size={20} color={colors.secondary} />}
+                  />
+                </View>
+              </LinearGradient>
+            </Card>
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <LinearGradient
+                  colors={[`${colors.primary}15`, `${colors.primary}05`]}
+                  style={styles.sectionIcon}
+                >
+                  <Ionicons name="settings" size={20} color={colors.primary} />
+                </LinearGradient>
+                <Text style={styles.sectionTitle}>Настройки</Text>
+              </View>
+            </View>
+
+            <Card variant="elevated" style={styles.settingsCard}>
+              {settingsItems.map((setting, index, array) => (
+                <React.Fragment key={setting.label}>
+                  <Button
+                    variant="tertiary"
+                    size="medium"
+                    style={styles.settingsButton}
+                    icon={<Ionicons name={setting.icon} size={20} color={colors.text.primary} />}
+                  >
+                    {setting.label}
+                  </Button>
+                  {index < array.length - 1 && <View style={styles.settingsDivider} />}
+                </React.Fragment>
+              ))}
+            </Card>
+          </View>
+        </View>
+      </ScrollView>
 
       <Modal 
         visible={isEditMode} 
@@ -305,181 +377,151 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
+  } as ViewStyle,
+  scrollView: {
+    flex: 1,
+  } as ViewStyle,
+  headerGradient: {
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
+  } as ViewStyle,
+  content: {
+    flex: 1,
+    marginTop: -spacing.xl,
+    padding: spacing.md,
+    borderTopLeftRadius: borderRadius.large,
+    borderTopRightRadius: borderRadius.large,
+    backgroundColor: colors.background,
+  } as ViewStyle,
   header: {
     alignItems: 'center',
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
-    backgroundColor: colors.background,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    ...shadows.small,
-  },
+  } as ViewStyle,
   photoContainer: {
     position: 'relative',
+    marginBottom: spacing.md,
+  } as ViewStyle,
+  photo: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    marginBottom: spacing.md,
-    ...shadows.medium,
-  },
-  photo: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: colors.background,
+    borderWidth: 4,
+    borderColor: colors.card,
   },
   editPhotoButton: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: colors.primary,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    right: -spacing.xs,
+    bottom: -spacing.xs,
+    borderRadius: borderRadius.circle,
+    padding: spacing.xs,
     ...shadows.small,
-  },
+  } as ViewStyle,
   name: {
     ...typography.h1,
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
+    color: colors.text.light,
     textAlign: 'center',
-    fontWeight: 700,
-  },
+  } as TextStyle,
   breed: {
-    ...typography.body2,
-    color: colors.text.secondary,
+    ...typography.body,
+    color: colors.text.light,
+    opacity: 0.9,
     textAlign: 'center',
-    fontWeight: 400,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
+  } as TextStyle,
+  statsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: -spacing.xs,
+    marginBottom: spacing.lg,
+  } as ViewStyle,
   statsCard: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.large,
-    marginBottom: spacing.xl,
-    padding: spacing.lg,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  statItem: {
     flex: 1,
+    margin: spacing.xs,
+    overflow: 'hidden',
+  } as ViewStyle,
+  statsGradient: {
+    padding: spacing.md,
+  } as ViewStyle,
+  statsContent: {
     alignItems: 'center',
-  },
-  statValue: {
+  } as ViewStyle,
+  statsIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.circle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  } as ViewStyle,
+  statsValue: {
     ...typography.h2,
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
-  },
-  statLabel: {
+  } as TextStyle,
+  statsLabel: {
     ...typography.caption,
     color: colors.text.secondary,
-    fontWeight: 400,
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: `${colors.text.secondary}15`,
-    marginHorizontal: spacing.md,
-  },
+  } as TextStyle,
   section: {
-    marginBottom: spacing.xl,
-  },
-  sectionTitle: {
-    ...typography.h3,
-    color: colors.text.primary,
+    marginBottom: spacing.lg,
+  } as ViewStyle,
+  sectionHeader: {
     marginBottom: spacing.md,
-    marginLeft: spacing.xs,
-  },
-  healthCard: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.large,
-    marginBottom: spacing.md,
-    padding: spacing.lg,
-  },
-  healthCardHeader: {
+  } as ViewStyle,
+  sectionTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  } as ViewStyle,
+  sectionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.circle,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: spacing.xs,
+  } as ViewStyle,
+  sectionTitle: {
+    ...typography.h2,
+  } as TextStyle,
+  documentCard: {
+    marginBottom: spacing.sm,
+    overflow: 'hidden',
+  } as ViewStyle,
+  documentGradient: {
+    padding: spacing.md,
+  } as ViewStyle,
+  documentContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  } as ViewStyle,
+  documentIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.circle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as ViewStyle,
+  documentInfo: {
+    flex: 1,
+    marginLeft: spacing.md,
     marginRight: spacing.sm,
-  },
-  healthCardTitle: {
-    ...typography.h3,
-    color: colors.text.primary,
-    fontWeight: 600,
-  },
-  healthItem: {
-    marginBottom: spacing.md,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: `${colors.text.secondary}10`,
-  },
-  healthItemTitle: {
-    ...typography.body1,
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
-    fontWeight: 500,
-  },
-  healthItemSubtitle: {
-    ...typography.body2,
-    color: colors.text.secondary,
-    marginBottom: spacing.xs,
-    fontWeight: '400',
-  },
-  healthItemDate: {
+  } as ViewStyle,
+  documentTitle: {
+    ...typography.body,
+    fontWeight: '500',
+  } as TextStyle,
+  documentDescription: {
     ...typography.caption,
     color: colors.text.secondary,
-    fontWeight: 400,
-  },
-  allergyList: {
-    marginTop: spacing.sm,
-  },
-  allergyItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  allergyDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.error,
-    marginRight: spacing.sm,
-  },
-  allergyText: {
-    ...typography.body1,
-    color: colors.text.primary,
-    fontWeight: '400',
-  },
-  editButton: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.medium,
-  },
+    marginTop: spacing.xs,
+  } as TextStyle,
+  settingsCard: {
+    padding: 0,
+    overflow: 'hidden',
+  } as ViewStyle,
+  settingsButton: {
+    width: '100%',
+    justifyContent: 'flex-start',
+    borderRadius: 0,
+    padding: spacing.md,
+  } as ViewStyle,
+  settingsDivider: {
+    height: 1,
+    backgroundColor: `${colors.text.secondary}10`,
+  } as ViewStyle,
 }); 

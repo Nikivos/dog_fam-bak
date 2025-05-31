@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 export type WalkStackParamList = {
   Walk: undefined;
@@ -13,11 +14,26 @@ export type RootTabParamList = {
   Питание: { petId: string; petWeight: number };
 };
 
+export type TabParamList = {
+  Home: undefined;
+  Walk: undefined;
+  Training: undefined;
+  Medical: undefined;
+  Питание: {
+    petId: string;
+    petWeight: number;
+  };
+};
+
 export type RootStackParamList = {
-  Root: NavigatorScreenParams<RootTabParamList>;
-  ДобавитьВакцинацию: { petId: string };
-  ДобавитьДегельминтизацию: { petId: string };
-  ДобавитьВизит: { petId: string };
-  ДобавитьЛекарство: { petId: string };
-  ДобавитьДиагноз: { petId: string };
-}; 
+  Home: undefined;
+  Profile: undefined;
+  Walk: undefined;
+  Feeding: undefined;
+  Training: undefined;
+  Medical: undefined;
+  AddVaccination: undefined;
+  AddVetVisit: undefined;
+};
+
+export type NavigationProp = NativeStackNavigationProp<RootStackParamList>; 

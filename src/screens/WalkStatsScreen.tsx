@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme/theme';
@@ -12,34 +12,52 @@ import { WalkStorage } from '../data/walkStorage';
 export const WalkStatsScreen = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'all'>('week');
   const [walks, setWalks] = useState<Walk[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [filteredWalks, setFilteredWalks] = useState<Walk[]>([]);
 
   useEffect(() => {
     loadWalks();
   }, [selectedPeriod]);
 
+  useEffect(() => {
+    if (selectedDate) {
+      const dayWalks = walks.filter(walk => 
+        isSameDay(new Date(walk.startTime), selectedDate)
+      );
+      setFilteredWalks(dayWalks);
+    } else {
+      setFilteredWalks(walks);
+    }
+  }, [selectedDate, walks]);
+
   const loadWalks = async () => {
     const storage = WalkStorage.getInstance();
-    await storage.load(); // Загружаем данные из AsyncStorage
+    await storage.load();
 
     const now = new Date();
-    let filteredWalks: Walk[];
+    let periodWalks: Walk[];
 
     switch (selectedPeriod) {
       case 'week':
         const weekStart = startOfWeek(now, { locale: ru });
         const weekEnd = endOfWeek(now, { locale: ru });
-        filteredWalks = await storage.getWalksByPeriod(weekStart, weekEnd);
+        periodWalks = await storage.getWalksByPeriod(weekStart, weekEnd);
         break;
       case 'month':
         const monthStart = startOfMonth(now);
         const monthEnd = endOfMonth(now);
-        filteredWalks = await storage.getWalksByPeriod(monthStart, monthEnd);
+        periodWalks = await storage.getWalksByPeriod(monthStart, monthEnd);
         break;
       default:
-        filteredWalks = await storage.getWalks();
+        periodWalks = await storage.getWalks();
     }
 
-    setWalks(filteredWalks);
+    setWalks(periodWalks);
+    setSelectedDate(null); // Сбрасываем выбранный день при смене периода
+  };
+
+  const handleDayPress = (date: Date) => {
+    setSelectedDate(selectedDate && isSameDay(selectedDate, date) ? null : date);
   };
 
   const renderHeader = () => {
@@ -48,12 +66,17 @@ export const WalkStatsScreen = () => {
     const weekEnd = endOfWeek(now, { locale: ru });
     const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-    const totalDistance = walks.reduce((sum, walk) => sum + walk.distance, 0);
-    const totalDuration = walks.reduce((sum, walk) => sum + walk.duration, 0);
+    const displayedWalks = filteredWalks;
+    const totalDistance = displayedWalks.reduce((sum, walk) => sum + walk.distance, 0);
+    const totalDuration = displayedWalks.reduce((sum, walk) => sum + walk.duration, 0);
 
     return (
       <View style={styles.headerContainer}>
-        <Text style={styles.title}>Статистика прогулок</Text>
+        <Text style={styles.title}>
+          {selectedDate 
+            ? `Прогулки за ${format(selectedDate, 'd MMMM', { locale: ru })}` 
+            : 'Статистика прогулок'}
+        </Text>
         
         <View style={styles.periodSelector}>
           <View style={styles.periodButtons}>
@@ -123,36 +146,48 @@ export const WalkStatsScreen = () => {
 
           <View style={styles.summaryItem}>
             <Ionicons name="paw" size={24} color={colors.primary} />
-            <Text style={styles.summaryValue}>{walks.length}</Text>
+            <Text style={styles.summaryValue}>{displayedWalks.length}</Text>
             <Text style={styles.summaryLabel}>Прогулок</Text>
           </View>
         </View>
 
-        <View style={styles.weekView}>
-          {days.map((day) => {
-            const dayWalks = walks.filter(w => 
-              new Date(w.startTime).toDateString() === day.toDateString()
-            );
-            const hasWalk = dayWalks.length > 0;
-            
-            return (
-              <View key={day.toISOString()} style={styles.dayColumn}>
-                <Text style={styles.dayName}>
-                  {format(day, 'EEEEEE', { locale: ru })}
-                </Text>
-                <View 
-                  style={[
+        {selectedPeriod === 'week' && (
+          <View style={styles.weekView}>
+            {days.map((day) => {
+              const dayWalks = walks.filter(w => 
+                isSameDay(new Date(w.startTime), day)
+              );
+              const hasWalk = dayWalks.length > 0;
+              const isSelected = selectedDate && isSameDay(selectedDate, day);
+              
+              return (
+                <TouchableOpacity
+                  key={day.toISOString()}
+                  style={styles.dayColumn}
+                  onPress={() => handleDayPress(day)}
+                >
+                  <Text style={[
+                    styles.dayName,
+                    isSelected && styles.selectedDayText
+                  ]}>
+                    {format(day, 'EEEEEE', { locale: ru })}
+                  </Text>
+                  <View style={[
                     styles.dayIndicator,
-                    hasWalk && styles.dayIndicatorActive
-                  ]}
-                />
-                <Text style={styles.dayDate}>
-                  {format(day, 'd')}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+                    hasWalk && styles.dayIndicatorActive,
+                    isSelected && styles.dayIndicatorSelected
+                  ]} />
+                  <Text style={[
+                    styles.dayDate,
+                    isSelected && styles.selectedDayText
+                  ]}>
+                    {format(day, 'd')}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </View>
     );
   };
@@ -160,21 +195,25 @@ export const WalkStatsScreen = () => {
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
       <Ionicons name="paw" size={64} color={colors.text.secondary} />
-      <Text style={styles.emptyText}>Нет прогулок за выбранный период</Text>
+      <Text style={styles.emptyText}>
+        {selectedDate 
+          ? `Нет прогулок за ${format(selectedDate, 'd MMMM', { locale: ru })}` 
+          : 'Нет прогулок за выбранный период'}
+      </Text>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
-        data={walks}
+        data={filteredWalks}
         renderItem={({ item }) => <WalkCard walk={item} />}
         keyExtractor={item => item.id}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmptyList}
         contentContainerStyle={[
           styles.listContent,
-          walks.length === 0 && styles.emptyListContent
+          filteredWalks.length === 0 && styles.emptyListContent
         ]}
       />
     </SafeAreaView>
@@ -288,5 +327,13 @@ const styles = StyleSheet.create({
   },
   emptyListContent: {
     flexGrow: 1,
+  },
+  selectedDayText: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  dayIndicatorSelected: {
+    backgroundColor: colors.primary,
+    transform: [{ scale: 1.2 }],
   },
 }); 

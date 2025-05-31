@@ -95,42 +95,47 @@ export const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: borderRadius.medium,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   elevated: {
-    ...shadows.medium,
-    borderWidth: 0,
+    ...shadows.small,
+    borderWidth: 1,
+    borderColor: `${colors.primary}10`,
+    backgroundColor: colors.card,
   },
   outlined: {
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: 'transparent',
+    borderColor: `${colors.primary}30`,
+    backgroundColor: colors.card,
   },
   subtle: {
-    backgroundColor: colors.background,
+    backgroundColor: `${colors.primary}05`,
     borderWidth: 1,
-    borderColor: 'rgba(47, 53, 66, 0.08)',
+    borderColor: `${colors.primary}10`,
   },
   pressed: {
-    opacity: 0.9,
+    opacity: 0.95,
+    transform: [{ scale: 0.995 }],
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.6,
   },
   loading: {
     minHeight: 100,
   },
   loadingContainer: {
-    padding: spacing.md,
+    padding: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingBar: {
     width: '60%',
-    height: 8,
-    backgroundColor: colors.skeleton,
+    height: 6,
+    backgroundColor: `${colors.primary}20`,
     borderRadius: borderRadius.small,
   },
 }); 

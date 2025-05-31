@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: borderRadius.medium,
+    borderRadius: borderRadius.large,
   },
   iconContainer: {
     marginRight: spacing.sm,
@@ -124,51 +124,60 @@ const styles = StyleSheet.create({
   // Variants
   primary: {
     backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: `${colors.primary}30`,
   },
   secondary: {
     backgroundColor: colors.secondary,
+    borderWidth: 1,
+    borderColor: `${colors.secondary}30`,
   },
   tertiary: {
-    backgroundColor: 'transparent',
+    backgroundColor: `${colors.primary}05`,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: `${colors.primary}20`,
   },
   danger: {
     backgroundColor: colors.error,
+    borderWidth: 1,
+    borderColor: `${colors.error}30`,
   },
   // Sizes
   small: {
     paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    minHeight: 32,
+    paddingHorizontal: spacing.md,
+    minHeight: 36,
   },
   medium: {
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    minHeight: 40,
+    paddingHorizontal: spacing.lg,
+    minHeight: 44,
   },
   large: {
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    minHeight: 48,
+    paddingHorizontal: spacing.xl,
+    minHeight: 52,
   },
   // States
   disabled: {
-    opacity: 0.5,
+    opacity: 0.6,
+    backgroundColor: `${colors.text.secondary}10`,
+    borderColor: `${colors.text.secondary}20`,
   },
   disabledText: {
     opacity: 0.7,
   },
   // Text styles
   text: {
-    ...typography.body1,
+    ...typography.body,
     textAlign: 'center',
+    fontWeight: '500',
   },
   primaryText: {
     color: colors.text.light,
   },
   secondaryText: {
-    color: colors.text.primary,
+    color: colors.text.light,
   },
   tertiaryText: {
     color: colors.primary,
@@ -177,12 +186,12 @@ const styles = StyleSheet.create({
     color: colors.text.light,
   },
   smallText: {
-    ...typography.body2,
+    fontSize: 14,
   },
   mediumText: {
-    ...typography.body1,
+    fontSize: 16,
   },
   largeText: {
-    ...typography.h3,
+    fontSize: 18,
   },
 }); 

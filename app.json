@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "DogVerse",
-    "slug": "dogverse",
+    "name": "DogFam",
+    "slug": "dogfam",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#A8D8D5"
+      "backgroundColor": "#FFF9F9"
     },
     "updates": {
       "fallbackToCacheTimeout": 0
@@ -19,14 +19,23 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Приложению нужен доступ к камере для фотографирования вашего питомца",
+        "NSPhotoLibraryUsageDescription": "Приложению нужен доступ к галерее для выбора фотографий вашего питомца"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#A8D8D5"
+        "backgroundColor": "#FFF9F9"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
