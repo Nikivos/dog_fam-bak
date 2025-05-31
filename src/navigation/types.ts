@@ -5,4 +5,8 @@ export type RootStackParamList = {
   Medical: undefined;
   AddVaccination: undefined;
   AddVetVisit: undefined;
+  EditVaccination: { id: string };
+  EditVetVisit: { id: string };
+  VaccinationDetails: { id: string };
+  VetVisitDetails: { id: string };
 }; 

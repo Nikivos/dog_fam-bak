@@ -1,14 +1,15 @@
 export const colors = {
-  background: '#FFF9F9',
+  background: '#F8F9FA',
   card: '#FFFFFF',
-  primary: '#FF8080',
-  secondary: '#95C1D8',
-  error: '#FF9999',
-  success: '#95D895',
-  border: '#F0E6E6',
+  primary: '#007AFF',
+  secondary: '#5856D6',
+  error: '#FF3B30',
+  success: '#34C759',
+  warning: '#FF9500',
+  border: '#E5E5EA',
   text: {
-    primary: '#5D5D5D',
-    secondary: '#8E8E8E',
+    primary: '#000000',
+    secondary: '#8E8E93',
     light: '#FFFFFF',
   },
 };
@@ -16,60 +17,64 @@ export const colors = {
 export const shadows = {
   small: {
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.03,
-    shadowRadius: 3.84,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   medium: {
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4.65,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  large: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 };
 
 export const borderRadius = {
-  small: 16,
-  medium: 20,
-  large: 24,
+  small: 4,
+  medium: 8,
+  large: 16,
   circle: 9999,
 };
 
 export const spacing = {
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 16,
   lg: 24,
   xl: 32,
-  xxl: 40,
+  xxl: 48,
 };
 
 export const typography = {
   h1: {
-    fontSize: 24,
-    fontWeight: '500',
-    color: colors.text.primary,
+    fontSize: 28,
+    fontWeight: '700',
   },
   h2: {
+    fontSize: 24,
+    fontWeight: '600',
+  },
+  h3: {
     fontSize: 20,
-    fontWeight: '500',
-    color: colors.text.primary,
+    fontWeight: '600',
   },
   body: {
     fontSize: 16,
-    color: colors.text.primary,
+    fontWeight: '400',
   },
   caption: {
     fontSize: 14,
-    color: colors.text.secondary,
+    fontWeight: '400',
   },
 };
 
@@ -96,79 +101,39 @@ export const safeArea = {
 };
 
 export const layout = {
+  window: {
+    width: 375,
+    height: 812,
+  },
   card: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.large,
-    padding: spacing.lg,
-    ...shadows.small,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.medium,
+    padding: spacing.md,
   },
   input: {
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.medium,
+    height: 48,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.md,
-    fontSize: 16,
-    color: colors.text.primary,
-    height: 50,
+    borderRadius: borderRadius.medium,
+    paddingHorizontal: spacing.md,
   },
   button: {
-    primary: {
-      backgroundColor: colors.primary,
-      borderRadius: borderRadius.large,
-      padding: spacing.md,
-      paddingHorizontal: spacing.lg,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: 48,
-      ...shadows.small,
-    },
-    secondary: {
-      backgroundColor: colors.secondary,
-      borderRadius: borderRadius.large,
-      padding: spacing.md,
-      paddingHorizontal: spacing.lg,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: 48,
-      ...shadows.small,
-    },
-    tertiary: {
-      backgroundColor: 'transparent',
-      borderRadius: borderRadius.large,
-      padding: spacing.md,
-      paddingHorizontal: spacing.lg,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: 48,
-    },
+    height: 48,
+    borderRadius: borderRadius.medium,
+    paddingHorizontal: spacing.md,
   },
   icon: {
-    small: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    medium: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    large: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      alignItems: 'center',
-      justifyContent: 'center',
+    size: {
+      small: 16,
+      medium: 24,
+      large: 32,
     },
   },
 }; 

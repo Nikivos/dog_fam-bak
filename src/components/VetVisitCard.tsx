@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, TextStyle } from 'react-native';
-import { format } from 'date-fns';
+import { format, parse, isToday } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { colors, spacing, shadows, borderRadius, typography } from '../theme/theme';
 import { VetVisit } from '../types/medical';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type Props = {
   visit: VetVisit;
@@ -13,9 +14,11 @@ type Props = {
 
 export const VetVisitCard = ({ visit, onDelete }: Props) => {
   const [expanded, setExpanded] = useState(false);
-  const hasDetails = visit.symptoms?.trim().length > 0 || 
-                    visit.diagnosis?.trim().length > 0 || 
-                    visit.prescriptions?.trim().length > 0;
+  const hasDetails = Boolean(
+    (visit.symptoms && visit.symptoms.trim().length > 0) ||
+    (visit.diagnosis && visit.diagnosis.trim().length > 0) ||
+    (visit.prescriptions && visit.prescriptions.trim().length > 0)
+  );
 
   const [animation] = useState(new Animated.Value(0));
 
@@ -34,33 +37,51 @@ export const VetVisitCard = ({ visit, onDelete }: Props) => {
     outputRange: ['0deg', '180deg'],
   });
 
+  const visitDate = parse(visit.date, 'yyyy-MM-dd', new Date());
+  const isTodays = isToday(visitDate);
+
   return (
     <TouchableOpacity 
       style={[styles.container, shadows.medium]}
       onPress={toggleExpand}
       activeOpacity={hasDetails ? 0.7 : 1}
     >
-      <View style={styles.header}>
-        <View style={styles.dateContainer}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="calendar" size={20} color={colors.primary} />
-          </View>
-          <Text style={styles.date}>
-            {format(new Date(visit.date), 'd MMMM yyyy', { locale: ru })}
+      <LinearGradient
+        colors={isTodays ? ['#ff9966', '#ff5e62'] : ['#4facfe', '#00f2fe']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.card}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>{visit.reason}</Text>
+          {isTodays && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>Сегодня</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.row}>
+          <Ionicons name="calendar" size={20} color={colors.text.light} />
+          <Text style={styles.text}>
+            {format(visitDate, 'd MMMM yyyy', { locale: ru })}
           </Text>
         </View>
-        {hasDetails && (
-          <Animated.View style={{ transform: [{ rotate: rotateIcon }] }}>
-            <Ionicons 
-              name="chevron-down" 
-              size={20} 
-              color={colors.text.secondary} 
-            />
-          </Animated.View>
-        )}
-      </View>
 
-      <Text style={styles.reason}>{visit.reason}</Text>
+        {visit.doctor && (
+          <View style={styles.row}>
+            <Ionicons name="person" size={20} color={colors.text.light} />
+            <Text style={styles.text}>{visit.doctor}</Text>
+          </View>
+        )}
+
+        {hasDetails && (
+          <View style={styles.detailsContainer}>
+            <Ionicons name="document-text" size={20} color={colors.text.light} />
+            <Text style={styles.detailsText}>Есть заметки</Text>
+          </View>
+        )}
+      </LinearGradient>
 
       {expanded && hasDetails && (
         <Animated.View 
@@ -122,34 +143,58 @@ export const VetVisitCard = ({ visit, onDelete }: Props) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.large,
-    padding: spacing.md,
     marginBottom: spacing.md,
+  },
+  card: {
+    borderRadius: 16,
+    padding: spacing.lg,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
-  dateContainer: {
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text.light,
+    flex: 1,
+  },
+  badge: {
+    backgroundColor: colors.text.light,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 12,
+    marginLeft: spacing.sm,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: spacing.xs,
   },
-  iconContainer: {
-    backgroundColor: `${colors.primary}10`,
-    padding: spacing.xs,
-    borderRadius: borderRadius.small,
+  text: {
+    fontSize: 16,
+    color: colors.text.light,
+    marginLeft: spacing.sm,
   },
-  date: {
-    ...typography.caption,
-    marginLeft: spacing.xs,
-  } as TextStyle,
-  reason: {
-    ...typography.h2,
-    marginBottom: spacing.sm,
-  } as TextStyle,
+  detailsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: spacing.sm,
+    borderRadius: 8,
+  },
+  detailsText: {
+    fontSize: 14,
+    color: colors.text.light,
+    marginLeft: spacing.sm,
+  },
   details: {
     marginTop: spacing.md,
     paddingTop: spacing.md,

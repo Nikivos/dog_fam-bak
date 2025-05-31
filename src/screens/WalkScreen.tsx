@@ -220,6 +220,11 @@ export const WalkScreen = ({ navigation }: WalkScreenProps) => {
       setDistance(0);
       setWalkPath([]);
       setStartTime(null);
+
+      // Переходим на экран статистики после сохранения
+      navigation.getParent()?.navigate('WalkStack', {
+        screen: 'WalkStats'
+      });
     } catch (error) {
       console.error('Error saving walk:', error);
       Alert.alert('Ошибка', 'Не удалось сохранить данные прогулки');

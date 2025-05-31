@@ -3,7 +3,7 @@ export interface Vaccination {
   name: string;
   date: string;
   nextDate: string;
-  type: string;
+  type: 'Ежегодная' | 'Срочная';
 }
 
 export interface VetVisit {
@@ -11,7 +11,10 @@ export interface VetVisit {
   date: string;
   reason: string;
   doctor: string;
-  status: 'completed' | 'scheduled';
+  status: 'scheduled' | 'completed' | 'cancelled';
+  diagnosis?: string;
+  prescriptions?: string;
+  symptoms?: string;
 }
 
 export interface MedicalRecord {

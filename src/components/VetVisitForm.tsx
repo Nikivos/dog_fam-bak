@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,169 +7,281 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { saveVetVisit } from '../data/medicalStorage';
+import { useNavigation } from '@react-navigation/native';
+import { MedicalStackNavigationProp } from '../types/navigation';
+import { MedicalStorage } from '../data/medicalStorage';
+import { format, parse } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { colors, spacing } from '../theme/theme';
+import { Ionicons } from '@expo/vector-icons';
 
-type RootStackParamList = {
-  AddVetVisit: { petId: string };
-};
+type NavigationProp = MedicalStackNavigationProp;
 
-type NavigationProp = StackNavigationProp<RootStackParamList>;
-type VetVisitFormRouteProp = RouteProp<RootStackParamList, 'AddVetVisit'>;
+const commonSymptoms = [
+  'Рвота',
+  'Диарея',
+  'Кашель',
+  'Чихание',
+  'Потеря аппетита',
+  'Вялость',
+  'Хромота',
+];
 
-export const VetVisitForm = () => {
+interface VetVisitFormProps {
+  visitId?: string;
+}
+
+export const VetVisitForm: React.FC<VetVisitFormProps> = ({ visitId }) => {
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<VetVisitFormRouteProp>();
-  const { petId } = route.params;
 
   const [reason, setReason] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(new Date());
   const [diagnosis, setDiagnosis] = useState('');
-  const [prescription, setPrescription] = useState('');
-  const [nextVisit, setNextVisit] = useState('');
-  const [notes, setNotes] = useState('');
+  const [prescriptions, setPrescriptions] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showNextDatePicker, setShowNextDatePicker] = useState(false);
-  const [currentPicker, setCurrentPicker] = useState<'date' | 'nextDate'>('date');
+  const [showSymptomSuggestions, setShowSymptomSuggestions] = useState(false);
+  const [symptoms, setSymptoms] = useState('');
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    setShowNextDatePicker(false);
-
-    if (selectedDate) {
-      const formattedDate = selectedDate.toISOString().split('T')[0];
-      if (currentPicker === 'date') {
-        setDate(formattedDate);
-      } else {
-        setNextVisit(formattedDate);
+  useEffect(() => {
+    if (visitId) {
+      const storage = MedicalStorage.getInstance();
+      const visit = storage.getVetVisits().find(v => v.id === visitId);
+      if (visit) {
+        setDate(parse(visit.date, 'yyyy-MM-dd', new Date()));
+        setReason(visit.reason);
+        setDiagnosis(visit.diagnosis || '');
+        setPrescriptions(visit.prescriptions || '');
+        setSymptoms(visit.symptoms || '');
       }
     }
-  };
+  }, [visitId]);
 
-  const showPicker = (pickerType: 'date' | 'nextDate') => {
-    setCurrentPicker(pickerType);
-    if (pickerType === 'date') {
-      setShowDatePicker(true);
-    } else {
-      setShowNextDatePicker(true);
+  const handleDateChange = (event: any, selectedDate: Date | undefined) => {
+    if (selectedDate) {
+      setDate(selectedDate);
     }
   };
 
-  const handleSubmit = async () => {
+  const handleConfirmDate = () => {
+    setShowDatePicker(false);
+  };
+
+  const handleSave = async () => {
+    if (!reason.trim()) {
+      Alert.alert(
+        'Ошибка',
+        'Пожалуйста, укажите причину визита',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     try {
-      await saveVetVisit(petId, {
-        reason,
-        date,
-        diagnosis,
-        prescription,
-        nextVisit,
-        notes,
-      });
-      navigation.goBack();
+      const storage = MedicalStorage.getInstance();
+      if (visitId) {
+        await storage.updateVetVisit(visitId, {
+          date: format(date, 'yyyy-MM-dd'),
+          reason: reason.trim(),
+          doctor: '',
+          status: 'scheduled',
+          diagnosis: diagnosis.trim(),
+          prescriptions: prescriptions.trim(),
+          symptoms: symptoms.trim(),
+        });
+      } else {
+        await storage.addVetVisit({
+          date: format(date, 'yyyy-MM-dd'),
+          reason: reason.trim(),
+          doctor: '',
+          status: 'scheduled',
+          diagnosis: diagnosis.trim(),
+          prescriptions: prescriptions.trim(),
+          symptoms: symptoms.trim(),
+        });
+      }
+
+      Alert.alert(
+        'Готово',
+        visitId ? 'Визит успешно обновлен' : 'Визит успешно добавлен',
+        [{ 
+          text: 'OK', 
+          onPress: () => {
+            navigation.goBack();
+            // Принудительно обновляем список на предыдущем экране
+            navigation.navigate('Medical');
+          }
+        }]
+      );
     } catch (error) {
-      console.error('Error saving vet visit:', error);
+      Alert.alert(
+        'Ошибка',
+        'Не удалось сохранить визит',
+        [{ text: 'OK' }]
+      );
     }
+  };
+
+  const handleSymptomSuggestionPress = (symptom: string) => {
+    const currentSymptoms = symptoms.trim();
+    const newSymptoms = currentSymptoms
+      ? `${currentSymptoms}, ${symptom}`
+      : symptom;
+    setSymptoms(newSymptoms);
+    setShowSymptomSuggestions(false);
+  };
+
+  const renderDatePicker = () => {
+    if (showDatePicker && Platform.OS === 'ios') {
+      return (
+        <View>
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="spinner"
+            onChange={(_, selectedDate) => handleDateChange(_, selectedDate)}
+            locale="ru"
+          />
+          <TouchableOpacity
+            style={styles.confirmButton}
+            onPress={handleConfirmDate}
+          >
+            <Text style={styles.confirmButtonText}>Подтвердить</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (Platform.OS === 'android' && showDatePicker) {
+      return (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display="default"
+          onChange={(_, selectedDate) => {
+            handleDateChange(_, selectedDate);
+            handleConfirmDate();
+          }}
+        />
+      );
+    }
+
+    return null;
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.form}>
-          <Text style={styles.label}>Причина визита</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.content}>
+        <View style={styles.inputContainer}>
+          <View style={styles.labelContainer}>
+            <Ionicons name="calendar" size={20} color={colors.text.secondary} />
+            <Text style={styles.label}>Дата визита</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.dateButton}
+            onPress={() => {
+              setShowDatePicker(true);
+              setShowSymptomSuggestions(false);
+            }}
+          >
+            <Text style={styles.dateButtonText}>
+              {format(date, 'd MMMM yyyy', { locale: ru })}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.inputContainer}>
+          <View style={styles.labelContainer}>
+            <Ionicons name="document-text" size={20} color={colors.text.secondary} />
+            <Text style={styles.label}>Причина визита</Text>
+          </View>
           <TextInput
             style={styles.input}
             value={reason}
             onChangeText={setReason}
-            placeholder="Введите причину визита"
+            placeholder="Укажите причину визита"
+            placeholderTextColor={colors.text.secondary}
+            multiline
           />
+        </View>
 
-          <Text style={styles.label}>Дата визита</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => showPicker('date')}
-          >
-            <Text style={styles.dateButtonText}>{date}</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.label}>Диагноз</Text>
+        <View style={styles.inputContainer}>
+          <View style={styles.labelContainer}>
+            <Ionicons name="medical" size={20} color={colors.text.secondary} />
+            <Text style={styles.label}>Симптомы</Text>
+          </View>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.multilineInput]}
+            value={symptoms}
+            onChangeText={setSymptoms}
+            placeholder="Опишите симптомы"
+            placeholderTextColor={colors.text.secondary}
+            multiline
+            onFocus={() => setShowSymptomSuggestions(true)}
+          />
+          {showSymptomSuggestions && (
+            <View style={styles.suggestionsContainer}>
+              {commonSymptoms.map((symptom) => (
+                <TouchableOpacity
+                  key={symptom}
+                  style={styles.suggestionItem}
+                  onPress={() => handleSymptomSuggestionPress(symptom)}
+                >
+                  <Ionicons name="add-circle" size={20} color={colors.primary} />
+                  <Text style={styles.suggestionText}>{symptom}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.inputContainer}>
+          <View style={styles.labelContainer}>
+            <Ionicons name="fitness" size={20} color={colors.text.secondary} />
+            <Text style={styles.label}>Диагноз</Text>
+          </View>
+          <TextInput
+            style={[styles.input, styles.multilineInput]}
             value={diagnosis}
             onChangeText={setDiagnosis}
-            placeholder="Введите диагноз"
+            placeholder="Укажите диагноз"
+            placeholderTextColor={colors.text.secondary}
             multiline
-            numberOfLines={4}
           />
-
-          <Text style={styles.label}>Назначения</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={prescription}
-            onChangeText={setPrescription}
-            placeholder="Введите назначения"
-            multiline
-            numberOfLines={4}
-          />
-
-          <Text style={styles.label}>Дата следующего визита</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => showPicker('nextDate')}
-          >
-            <Text style={styles.dateButtonText}>
-              {nextVisit || 'Не назначено'}
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={styles.label}>Заметки</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Дополнительная информация"
-            multiline
-            numberOfLines={4}
-          />
-
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.buttonText}>Отмена</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.submitButton]}
-              onPress={handleSubmit}
-            >
-              <LinearGradient
-                colors={['#4facfe', '#00f2fe']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.gradient}
-              >
-                <Text style={[styles.buttonText, styles.submitButtonText]}>
-                  Добавить
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
         </View>
-      </ScrollView>
 
-      {(showDatePicker || showNextDatePicker) && (
-        <DateTimePicker
-          value={new Date(currentPicker === 'date' ? date : (nextVisit || date))}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
-        />
-      )}
+        <View style={styles.inputContainer}>
+          <View style={styles.labelContainer}>
+            <Ionicons name="list" size={20} color={colors.text.secondary} />
+            <Text style={styles.label}>Назначения</Text>
+          </View>
+          <TextInput
+            style={[styles.input, styles.multilineInput]}
+            value={prescriptions}
+            onChangeText={setPrescriptions}
+            placeholder="Укажите назначения"
+            placeholderTextColor={colors.text.secondary}
+            multiline
+          />
+        </View>
+
+        {renderDatePicker()}
+
+        <TouchableOpacity 
+          style={styles.saveButton} 
+          onPress={handleSave}
+        >
+          <Ionicons name="checkmark" size={24} color={colors.text.light} />
+          <Text style={styles.saveButtonText}>
+            {visitId ? 'Сохранить изменения' : 'Добавить'}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -177,73 +289,106 @@ export const VetVisitForm = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
-  scrollView: {
-    flex: 1,
+  content: {
+    padding: spacing.md,
   },
-  form: {
-    padding: 16,
+  inputContainer: {
+    marginBottom: spacing.lg,
+  },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginLeft: spacing.xs,
   },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: spacing.md,
+    fontSize: 16,
+    color: colors.text.primary,
     borderWidth: 1,
-    borderColor: '#e1e1e1',
+    borderColor: colors.border,
   },
-  textArea: {
-    height: 100,
+  multilineInput: {
+    minHeight: 100,
     textAlignVertical: 'top',
   },
   dateButton: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#e1e1e1',
+    borderColor: colors.border,
   },
   dateButtonText: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text.primary,
   },
-  buttonContainer: {
+  saveButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    padding: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.xl,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
+    justifyContent: 'center',
   },
-  button: {
-    flex: 1,
-    marginHorizontal: 8,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  cancelButton: {
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#e1e1e1',
-    padding: 12,
-  },
-  submitButton: {
-    backgroundColor: '#4facfe',
-  },
-  gradient: {
-    padding: 12,
-  },
-  buttonText: {
+  saveButtonText: {
     fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
+    color: colors.text.light,
+    fontWeight: '600',
+    marginLeft: spacing.sm,
   },
-  submitButtonText: {
-    color: '#fff',
+  suggestionsContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    zIndex: 1,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    maxHeight: 200,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  suggestionText: {
+    fontSize: 16,
+    color: colors.text.primary,
+    marginLeft: spacing.sm,
+  },
+  confirmButton: {
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  confirmButtonText: {
+    color: colors.text.light,
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 
